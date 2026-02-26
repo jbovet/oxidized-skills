@@ -1,3 +1,31 @@
+//! Static analysis via [semgrep](https://semgrep.dev/).
+//!
+//! This is an **external** scanner — it requires the `semgrep` binary to
+//! be installed on `PATH`.  When `semgrep` is not found the scanner is
+//! automatically marked as *skipped* by the audit runner.
+//!
+//! # How it works
+//!
+//! 1. Spawns `semgrep scan --json --quiet <path>`.
+//! 2. Polls the subprocess with a configurable timeout (default 3 s) to
+//!    avoid hanging when semgrep tries to phone home on restricted networks.
+//! 3. Parses the JSON `results` array into [`Finding`] structs, mapping
+//!    the semgrep `severity` field to our [`Severity`] enum.
+//!
+//! # Timeout behaviour
+//!
+//! Semgrep can stall for many seconds when it tries to reach `semgrep.dev`
+//! for rule updates and the network is blocked (e.g. corporate proxy).
+//! The `SEMGREP_TIMEOUT` constant caps the wait at 3 seconds; if the
+//! process has not exited by then it is killed and the scan is marked as
+//! *skipped*.
+//!
+//! # Representative rules
+//!
+//! The [`rules`] function lists a representative subset.  At runtime,
+//! findings are tagged dynamically as `semgrep/<check_id>` based on
+//! whatever semgrep reports.
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{which_exists, RuleInfo, Scanner};
@@ -12,13 +40,17 @@ use std::time::{Duration, Instant};
 /// legitimate slow runs to complete.
 const SEMGREP_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Semgrep scanner wrapper.
+/// External scanner wrapper for [semgrep](https://semgrep.dev/).
 ///
-/// Runs `semgrep scan --json --quiet <path>` and maps results to `Finding`
-/// structs. Severity is derived from the semgrep `severity` field.
+/// Runs `semgrep scan --json --quiet <path>` and maps results to
+/// [`Finding`] structs.  Severity is derived from the semgrep `severity`
+/// JSON field (`ERROR` → [`Error`](Severity::Error), `WARNING` →
+/// [`Warning`](Severity::Warning), anything else → [`Info`](Severity::Info)).
 ///
-/// The subprocess is killed and the scan is skipped if it does not complete
-/// within [`SEMGREP_TIMEOUT`].
+/// The subprocess is killed and the scan is marked *skipped* if it does
+/// not complete within `SEMGREP_TIMEOUT` (3 seconds).
+///
+/// Requires `semgrep` on `PATH`; see [`is_available`](Scanner::is_available).
 pub struct SemgrepScanner;
 
 impl Scanner for SemgrepScanner {
@@ -238,6 +270,12 @@ impl Scanner for SemgrepScanner {
     }
 }
 
+/// Returns a representative [`RuleInfo`] catalogue for the semgrep scanner.
+///
+/// Semgrep ships thousands of community and pro rules that are updated
+/// independently of this crate.  Only a few common examples are listed
+/// here.  At runtime, findings use the actual `check_id` from the semgrep
+/// JSON output (e.g. `semgrep/python.lang.security.audit.…`).
 pub fn rules() -> Vec<RuleInfo> {
     vec![
         RuleInfo {

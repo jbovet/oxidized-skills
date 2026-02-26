@@ -1,3 +1,34 @@
+//! Prompt injection pattern scanner.
+//!
+//! Detects common prompt injection and manipulation patterns in skill
+//! description files using pure Rust regex matching — no external tool
+//! required.
+//!
+//! # Categories
+//!
+//! | Group | Severity | What it detects |
+//! |-------|----------|-----------------|
+//! | Direct Instruction Override | Error | "ignore previous instructions", "disregard", "forget" |
+//! | Role Manipulation | Error/Warning | Role escalation, impersonation, restrictions bypass |
+//! | Jailbreak Keywords | Error | DAN mode, developer mode, safety bypass |
+//! | Data Exfiltration | Warning | Send data to endpoints, read credentials |
+//! | Code/Shell Injection | Error | Execute arbitrary code, run without validation |
+//! | Excessive Permissions | Warning | Mass deletion, sudo/root usage |
+//! | System Prompt Extraction | Error | Reveal system prompt, initial instructions |
+//! | Delimiter / Context Injection | Error | `<instructions>`, `[INST]`, `<\|im_start\|>` tokens |
+//! | Fictional Framing | Warning | Hypothetical scenarios used to bypass policies |
+//! | Priority Override | Warning | `OVERRIDE:`, `NEW TASK:`, `SYSTEM OVERRIDE:` |
+//!
+//! # Scanned file types
+//!
+//! `*.md`, `*.txt`, `*.yaml`, `*.yml`
+//!
+//! # Exclusions
+//!
+//! Well-known non-skill files (`LICENSE`, `CHANGELOG`, `NOTICE`, `AUTHORS`,
+//! etc.) are automatically skipped to avoid false positives on legal
+//! boilerplate.
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{collect_files, RuleInfo, Scanner};
@@ -6,6 +37,10 @@ use std::path::Path;
 use std::sync::LazyLock;
 use std::time::Instant;
 
+/// A single regex-based prompt injection pattern rule.
+///
+/// Each pattern maps a compiled [`Regex`] to a rule identifier, severity
+/// level, human-readable message, and remediation guidance.
 struct PromptPattern {
     id: &'static str,
     severity: Severity,
@@ -301,6 +336,17 @@ fn is_benign_file(path: &Path) -> bool {
     BENIGN_FILENAMES.contains(&stem.as_str())
 }
 
+/// Built-in scanner for prompt injection and manipulation vulnerabilities.
+///
+/// Scans `*.md`, `*.txt`, `*.yaml`, and `*.yml` files line-by-line against
+/// a static table of compiled regexes covering 10 prompt injection
+/// categories.  No external tool is required.
+///
+/// Files whose stem matches a known non-skill name (e.g. `LICENSE`,
+/// `CHANGELOG`) are skipped automatically to prevent false positives on
+/// legal boilerplate.
+///
+/// See the [module-level documentation](self) for the full category table.
 pub struct PromptScanner;
 
 impl Scanner for PromptScanner {
@@ -381,6 +427,10 @@ impl Scanner for PromptScanner {
     }
 }
 
+/// Returns the [`RuleInfo`] catalogue for every prompt injection rule.
+///
+/// Used by the `list-rules` and `explain` CLI commands to display rule
+/// metadata without running a scan.
 pub fn rules() -> Vec<RuleInfo> {
     PATTERNS
         .iter()

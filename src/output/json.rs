@@ -1,3 +1,8 @@
+//! JSON output formatter.
+//!
+//! Produces a pretty-printed JSON document containing skill metadata, a
+//! severity summary, active findings, and suppressed findings.
+
 use crate::finding::AuditReport;
 
 #[derive(serde::Serialize)]
@@ -21,6 +26,14 @@ struct Summary {
     suppressed: usize,
 }
 
+/// Formats an [`AuditReport`] as pretty-printed JSON.
+///
+/// The output includes skill metadata, a severity summary object, and the
+/// full list of active and suppressed findings.
+///
+/// # Panics
+///
+/// Panics if the report cannot be serialized (should not happen with valid data).
 pub fn format(report: &AuditReport) -> String {
     let output = JsonOutput {
         skill: &report.skill,

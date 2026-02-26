@@ -1,13 +1,39 @@
+//! Shell script linting via [ShellCheck](https://www.shellcheck.net/).
+//!
+//! This is an **external** scanner — it requires the `shellcheck` binary
+//! to be installed on `PATH`.  When `shellcheck` is not found the scanner
+//! is automatically marked as *skipped* by the audit runner.
+//!
+//! # How it works
+//!
+//! 1. Collects all `*.sh` and `*.bash` files under the skill directory.
+//! 2. Runs `shellcheck -f json --severity=style <file>` for each file.
+//! 3. Parses the JSON output and maps shellcheck severity levels to our
+//!    [`Severity`] enum (`"error"` → [`Error`](Severity::Error),
+//!    `"warning"` → [`Warning`](Severity::Warning), anything else →
+//!    [`Info`](Severity::Info)).
+//! 4. Each finding links to the ShellCheck wiki page for its rule code
+//!    (e.g. `https://www.shellcheck.net/wiki/SC2086`).
+//!
+//! # Representative rules
+//!
+//! The [`rules`] function lists a representative subset.  At runtime,
+//! findings are tagged dynamically as `shellcheck/SC<code>` based on
+//! whatever ShellCheck reports.
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{collect_files, which_exists, RuleInfo, Scanner};
 use std::path::Path;
 use std::time::Instant;
 
-/// ShellCheck scanner wrapper.
+/// External scanner wrapper for [ShellCheck](https://www.shellcheck.net/).
 ///
-/// Finds `.sh` and `.bash` files and runs `shellcheck -f json` on each,
-/// mapping shellcheck severity levels to our `Severity` enum.
+/// Finds `*.sh` and `*.bash` files under the skill directory and runs
+/// `shellcheck -f json --severity=style` on each.  Findings with a code
+/// of zero are skipped (malformed JSON).
+///
+/// Requires `shellcheck` on `PATH`; see [`is_available`](Scanner::is_available).
 pub struct ShellCheckScanner;
 
 impl Scanner for ShellCheckScanner {
@@ -122,6 +148,12 @@ impl Scanner for ShellCheckScanner {
     }
 }
 
+/// Returns a representative [`RuleInfo`] catalogue for the ShellCheck scanner.
+///
+/// ShellCheck defines hundreds of rules (SC1000–SC2300+) that are updated
+/// independently of this crate.  Only the most common examples are listed
+/// here.  At runtime, findings use the actual code from the ShellCheck
+/// JSON output (e.g. `shellcheck/SC2086`).
 pub fn rules() -> Vec<RuleInfo> {
     vec![
         RuleInfo {

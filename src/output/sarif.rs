@@ -1,3 +1,8 @@
+//! [SARIF 2.1.0](https://sarifweb.azurewebsites.net/) output formatter.
+//!
+//! Produces a standards-compliant SARIF document that can be consumed by GitHub
+//! Code Scanning, VS Code SARIF Viewer, and other SARIF-aware tools.
+
 use crate::finding::{AuditReport, Finding, Severity};
 use serde_sarif::sarif::{
     ArtifactLocation, Location, Message, MultiformatMessageString, PhysicalLocation, Region,
@@ -5,6 +10,18 @@ use serde_sarif::sarif::{
 };
 use std::collections::HashMap;
 
+/// Formats an [`AuditReport`] as a [SARIF 2.1.0] JSON document.
+///
+/// Both active and suppressed findings are included so that downstream tools
+/// can display suppression state. Rules are deduplicated and referenced by
+/// index.
+///
+/// # Panics
+///
+/// Panics if the SARIF structure cannot be serialized (should not happen with
+/// valid data).
+///
+/// [SARIF 2.1.0]: https://sarifweb.azurewebsites.net/
 pub fn format(report: &AuditReport) -> String {
     let all_findings: Vec<&Finding> = report
         .findings

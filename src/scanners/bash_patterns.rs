@@ -1,3 +1,31 @@
+//! Dangerous bash pattern scanner.
+//!
+//! Detects risky shell patterns across **eight categories** using pure Rust
+//! regex matching — no external tool required.
+//!
+//! # Categories
+//!
+//! | Category | Severity | What it detects |
+//! |----------|----------|-----------------|
+//! | **A** — Remote Code Execution | Error | Pipe-to-shell, `eval`, `source <(curl …)` |
+//! | **B** — Credential Exfiltration | Error | Access to `~/.ssh/`, `~/.aws/`, env-to-network |
+//! | **C** — Destructive Operations | Error | `rm -rf ~/`, `dd` to block devices |
+//! | **D** — Reverse Shell / Backdoors | Error | Netcat `-e`, bash `/dev/tcp`, Python socket |
+//! | **E** — Privilege Escalation | Warning | `sudo su`, SUID bit |
+//! | **G** — Unsafe Variable Expansion | Warning | Unquoted `rm -rf $VAR`, `bash -c "$VAR"` |
+//! | **H** — Unallowlisted Outbound | Info | `curl`/`wget` to domains not in allowlist |
+//!
+//! # Scanned file types
+//!
+//! `*.sh`, `*.bash`, `*.zsh`
+//!
+//! # Suppression
+//!
+//! Individual lines can be suppressed with an inline `# audit:ignore` or
+//! `# oxidized-skills:ignore` trailing comment. Category H findings are also
+//! suppressed when every URL on the line resolves to a domain in
+//! [`Config::allowlist`](crate::config::AllowlistConfig::domains).
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{collect_files, is_suppressed_inline, RuleInfo, Scanner};
@@ -6,6 +34,10 @@ use std::path::Path;
 use std::sync::LazyLock;
 use std::time::Instant;
 
+/// A single regex-based bash pattern rule.
+///
+/// Each pattern maps a compiled [`Regex`] to a rule identifier, severity level,
+/// human-readable message, and remediation guidance.
 struct BashPattern {
     id: &'static str,
     severity: Severity,
@@ -289,6 +321,16 @@ static PATTERNS: &[BashPattern] = &[
     },
 ];
 
+/// Built-in scanner for dangerous shell patterns and command execution anti-patterns.
+///
+/// Scans `*.sh`, `*.bash`, and `*.zsh` files line-by-line against a static
+/// table of compiled regexes covering categories A through H.  No external
+/// tool is required — all matching is performed in pure Rust.
+///
+/// Comments (lines starting with `#`, except shebangs) and lines with an
+/// inline suppression marker are skipped automatically.
+///
+/// See the [module-level documentation](self) for the full category table.
 pub struct BashPatternScanner;
 
 impl Scanner for BashPatternScanner {
@@ -400,6 +442,10 @@ impl Scanner for BashPatternScanner {
     }
 }
 
+/// Returns the [`RuleInfo`] catalogue for every bash pattern rule.
+///
+/// Used by the `list-rules` and `explain` CLI commands to display rule
+/// metadata without running a scan.
 pub fn rules() -> Vec<RuleInfo> {
     PATTERNS
         .iter()

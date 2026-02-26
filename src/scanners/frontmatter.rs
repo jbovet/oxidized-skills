@@ -1,3 +1,36 @@
+//! SKILL.md frontmatter and metadata validator.
+//!
+//! Validates that every skill directory contains a well-formed `SKILL.md`
+//! file with correct YAML frontmatter.  This is a built-in scanner — no
+//! external tool is required.
+//!
+//! # Rules
+//!
+//! | ID | Sev | What it checks |
+//! |----|-----|----------------|
+//! | `frontmatter/missing-skill-md` | Error | `SKILL.md` must exist |
+//! | `frontmatter/readme-in-skill` | Warning | `README.md` should not co-exist |
+//! | `frontmatter/xml-in-frontmatter` | Error | No `<`/`>` in name or description |
+//! | `frontmatter/name-reserved-word` | Error | Name must not contain "claude"/"anthropic" |
+//! | `frontmatter/invalid-name-format` | Warning | Name must be lowercase-kebab-case |
+//! | `frontmatter/name-too-long` | Warning | Name must be ≤ 64 characters |
+//! | `frontmatter/name-too-vague` | Warning | Name must not be a generic term |
+//! | `frontmatter/description-missing` | Warning | Description must exist and be non-empty |
+//! | `frontmatter/description-too-long` | Warning | Description must be ≤ 1024 characters |
+//! | `frontmatter/description-not-third-person` | Warning | Must use third person voice |
+//! | `frontmatter/description-no-trigger` | Info | Should include "when to use" context |
+//! | `frontmatter/bare-bash-tool` | Warning | `Bash` in allowed-tools must be scoped |
+//! | `frontmatter/skill-body-too-long` | Warning | SKILL.md must be ≤ 500 lines |
+//! | `frontmatter/windows-path` | Warning | No backslash paths |
+//! | `frontmatter/time-sensitive-content` | Warning | No date-conditional language |
+//!
+//! # Frontmatter parsing
+//!
+//! A lightweight YAML subset parser is used instead of a full YAML crate.
+//! It supports scalar `key: value` pairs, block sequences (`- item`), and
+//! flow sequences (`[item, item]`), which covers everything the Claude
+//! Skills specification requires.
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{RuleInfo, Scanner};
@@ -432,6 +465,15 @@ fn validate_allowed_tools(
 // Scanner
 // ---------------------------------------------------------------------------
 
+/// Built-in scanner for `SKILL.md` frontmatter and metadata validation.
+///
+/// Checks for the existence of `SKILL.md`, parses its YAML frontmatter,
+/// and validates the `name`, `description`, and `allowed-tools` fields
+/// against 15 rules derived from the Claude agent skills best-practices
+/// guide.  Also inspects the body for excessive length, Windows-style
+/// paths, and time-sensitive language.
+///
+/// See the [module-level documentation](self) for the full rule table.
 pub struct FrontmatterScanner;
 
 impl Scanner for FrontmatterScanner {
@@ -594,6 +636,10 @@ impl Scanner for FrontmatterScanner {
 // Rule catalogue
 // ---------------------------------------------------------------------------
 
+/// Returns the [`RuleInfo`] catalogue for every frontmatter validation rule.
+///
+/// Used by the `list-rules` and `explain` CLI commands to display rule
+/// metadata without running a scan.
 pub fn rules() -> Vec<RuleInfo> {
     vec![
         RuleInfo {

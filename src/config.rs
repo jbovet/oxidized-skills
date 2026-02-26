@@ -1,40 +1,111 @@
+//! Configuration loading and management.
+//!
+//! Provides types for the TOML-based configuration file and for finding-suppression
+//! rules stored in `.oxidized-skills-ignore` files.
+//!
+//! # Configuration file
+//!
+//! The default configuration file is `oxidized-skills.toml` in the current
+//! working directory. Use [`Config::load`] to read it:
+//!
+//! ```rust,no_run
+//! use oxidized_skills::config::Config;
+//!
+//! let config = Config::load(None).expect("failed to load config");
+//! assert!(config.is_scanner_enabled("prompt"));
+//! ```
+//!
+//! # Suppression files
+//!
+//! Place a `.oxidized-skills-ignore` file inside a skill directory to suppress
+//! specific findings. See [`Suppression`] for the format and [`load_suppressions`]
+//! for loading.
+
 use std::path::Path;
 
+/// Main configuration for the audit system.
+///
+/// Loaded from a TOML file (typically `oxidized-skills.toml`). All fields
+/// carry sensible defaults so the config file can be omitted entirely.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use oxidized_skills::config::Config;
+///
+/// // Load from the default location or fall back to built-in defaults.
+/// let config = Config::load(None).unwrap();
+/// ```
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct Config {
+    /// Trusted registries and domains used by package-install and
+    /// bash-pattern scanners.
     pub allowlist: AllowlistConfig,
+    /// When strict mode is enabled, warnings are promoted to failures.
     pub strict: StrictConfig,
+    /// Per-scanner on/off toggles.
     pub scanners: ScannersConfig,
 }
 
+/// Trusted package registries and domains.
+///
+/// Entries are automatically normalized to lowercase at load time via
+/// [`AllowlistConfig::normalize`] so that scanners can perform
+/// case-insensitive comparisons without per-line allocation.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct AllowlistConfig {
+    /// Trusted package registries (e.g., `registry.npmjs.org`, `pypi.org`).
     pub registries: Vec<String>,
+    /// Trusted domains for downloads (e.g., `github.com`).
     pub domains: Vec<String>,
 }
 
+/// Strict-mode configuration.
+///
+/// When [`enabled`](StrictConfig::enabled) is `true`, any finding with
+/// [`Severity::Warning`](crate::finding::Severity::Warning) will cause the
+/// audit to fail (status = [`AuditStatus::Failed`](crate::finding::AuditStatus::Failed)).
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct StrictConfig {
+    /// Set to `true` to treat warnings as errors.
     pub enabled: bool,
 }
 
+/// Per-scanner on/off toggles.
+///
+/// Every scanner defaults to **enabled**. Set a field to `false` in the
+/// TOML config file to skip that scanner during audits.
+///
+/// # Examples
+///
+/// ```toml
+/// [scanners]
+/// semgrep = false   # skip semgrep even if it is installed
+/// ```
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ScannersConfig {
+    /// Shell script analysis via [shellcheck](https://www.shellcheck.net/).
     pub shellcheck: bool,
+    /// Static analysis via [semgrep](https://semgrep.dev/).
     pub semgrep: bool,
+    /// Secret detection via [gitleaks](https://github.com/gitleaks/gitleaks).
     pub secrets: bool,
+    /// Prompt injection pattern detection (built-in, no external tool).
     pub prompt: bool,
+    /// Dangerous bash anti-pattern detection (built-in).
     pub bash_patterns: bool,
+    /// Unsafe package installation detection (built-in).
     pub package_install: bool,
+    /// SKILL.md frontmatter validation (built-in).
     pub frontmatter: bool,
 }
 
 impl AllowlistConfig {
-    /// Normalize all entries to lowercase in-place.
+    /// Normalizes all entries to lowercase in-place.
     ///
     /// Called once at config load time so that scanners can compare against
     /// pre-lowercased values without allocating on every line they scan.
@@ -83,6 +154,35 @@ impl Default for ScannersConfig {
 }
 
 impl Config {
+    /// Loads configuration from a TOML file.
+    ///
+    /// Resolution order:
+    /// 1. If `path` is `Some`, load from that file (error if missing).
+    /// 2. If `path` is `None`, try `oxidized-skills.toml` in the current directory.
+    /// 3. If that file does not exist either, return [`Config::default()`].
+    ///
+    /// The [`AllowlistConfig`] entries are normalized to lowercase after loading.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(String)` when:
+    /// - The explicit path does not exist.
+    /// - The file cannot be read from disk.
+    /// - The TOML content fails to parse.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use std::path::Path;
+    /// use oxidized_skills::config::Config;
+    ///
+    /// // Explicit path
+    /// let cfg = Config::load(Some(Path::new("my-config.toml")))?;
+    ///
+    /// // Auto-detect or default
+    /// let cfg = Config::load(None)?;
+    /// # Ok::<(), String>(())
+    /// ```
     pub fn load(path: Option<&Path>) -> Result<Config, String> {
         let config_path = if let Some(p) = path {
             if p.exists() {
@@ -114,6 +214,19 @@ impl Config {
         }
     }
 
+    /// Returns `true` if the named scanner is enabled.
+    ///
+    /// Unknown scanner names are considered enabled (returns `true`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxidized_skills::config::Config;
+    ///
+    /// let config = Config::default();
+    /// assert!(config.is_scanner_enabled("prompt"));
+    /// assert!(config.is_scanner_enabled("unknown_scanner"));
+    /// ```
     pub fn is_scanner_enabled(&self, name: &str) -> bool {
         match name {
             "shellcheck" => self.scanners.shellcheck,
@@ -128,20 +241,64 @@ impl Config {
     }
 }
 
+/// Root structure of an `.oxidized-skills-ignore` TOML file.
+///
+/// # File format
+///
+/// ```toml
+/// [[suppress]]
+/// rule = "bash/CAT-A-001"
+/// file = "setup.sh"
+/// reason = "Accepted risk for bootstrapping"
+/// ```
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SuppressionFile {
+    /// One or more suppression entries.
     pub suppress: Vec<Suppression>,
 }
 
+/// A rule that silences a specific audit finding.
+///
+/// Suppressions live in `.oxidized-skills-ignore` files at the root of a skill
+/// directory and are loaded by [`load_suppressions`].
+///
+/// # Matching
+///
+/// A suppression matches a [`Finding`](crate::finding::Finding) when:
+/// - `rule` equals the finding's `rule_id`.
+/// - `file` matches the finding's path (empty string acts as a wildcard).
+/// - `lines` (if set) contains the finding's line number.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Suppression {
+    /// Rule ID to suppress (e.g., `"bash/CAT-A-001"`).
     pub rule: String,
+    /// Relative file path to match, or an empty string for all files.
     pub file: String,
+    /// Optional line range (`"10-20"`) or single line (`"15"`).
     pub lines: Option<String>,
+    /// Human-readable justification for the suppression.
     pub reason: String,
+    /// Optional issue-tracker reference (e.g., `"JIRA-1234"`).
     pub ticket: Option<String>,
 }
 
+/// Loads suppression rules from a `.oxidized-skills-ignore` file.
+///
+/// Looks for the file in `skill_path` and parses it as TOML. Returns an empty
+/// vector when the file is absent or cannot be parsed (a warning is printed to
+/// stderr in the latter case).
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::Path;
+/// use oxidized_skills::config::load_suppressions;
+///
+/// let suppressions = load_suppressions(Path::new("./my-skill"));
+/// for s in &suppressions {
+///     println!("suppressed: {} — {}", s.rule, s.reason);
+/// }
+/// ```
 pub fn load_suppressions(skill_path: &Path) -> Vec<Suppression> {
     let ignore_path = skill_path.join(".oxidized-skills-ignore");
     if !ignore_path.exists() {

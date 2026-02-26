@@ -1,3 +1,29 @@
+//! Package installation audit scanner.
+//!
+//! Detects unsafe package installation patterns in shell scripts that may
+//! introduce supply-chain vulnerabilities.  This is a built-in scanner — no
+//! external tool is required.
+//!
+//! # Rules
+//!
+//! | ID | Sev | What it checks |
+//! |----|-----|----------------|
+//! | `pkg/F1-npm` | Warning | `npm install` without explicit `--registry` |
+//! | `pkg/F1-bun` | Warning | `bun add` without explicit `--registry` |
+//! | `pkg/F1-pip` | Warning | `pip install` without explicit `--index-url` |
+//! | `pkg/F2-unpinned` | Warning | `@latest` — unpinned version |
+//! | `pkg/F3-registry` | Warning | Registry URL not in allowlist |
+//!
+//! # Scanned file types
+//!
+//! `*.sh`, `*.bash`, `*.zsh`
+//!
+//! # Suppression
+//!
+//! Individual lines can be suppressed with an inline `# audit:ignore` or
+//! `# oxidized-skills:ignore` trailing comment. Registry URLs are also
+//! checked against [`Config::allowlist`](crate::config::AllowlistConfig::registries).
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{collect_files, is_suppressed_inline, RuleInfo, Scanner};
@@ -75,6 +101,15 @@ fn emit(
     });
 }
 
+/// Built-in scanner for unsafe package installation patterns.
+///
+/// Scans `*.sh`, `*.bash`, and `*.zsh` files for `npm install`, `bun add`,
+/// and `pip install` commands that are missing explicit registry flags or
+/// use unpinned `@latest` versions.  Registry URLs are validated against
+/// the [`allowlist.registries`](crate::config::AllowlistConfig::registries)
+/// configuration.
+///
+/// See the [module-level documentation](self) for the full rule table.
 pub struct PackageInstallScanner;
 
 impl Scanner for PackageInstallScanner {
@@ -228,6 +263,10 @@ impl Scanner for PackageInstallScanner {
     }
 }
 
+/// Returns the [`RuleInfo`] catalogue for every package install rule.
+///
+/// Used by the `list-rules` and `explain` CLI commands to display rule
+/// metadata without running a scan.
 pub fn rules() -> Vec<RuleInfo> {
     vec![
         RuleInfo {

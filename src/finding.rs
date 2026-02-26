@@ -1,11 +1,29 @@
+//! Core data types for audit findings and reports.
+//!
+//! This module contains the primary output types of the audit pipeline:
+//!
+//! - [`Finding`] — a single security issue detected by a scanner.
+//! - [`ScanResult`] — aggregated output from one scanner run.
+//! - [`AuditReport`] — the final report combining all scanners.
+//! - [`Severity`], [`AuditStatus`], [`RiskLevel`] — classification enums.
+
 use std::fmt;
 use std::path::PathBuf;
 
+/// Severity level for a security finding.
+///
+/// Variants are ordered from most to least critical and implement [`Ord`],
+/// so collections of findings can be sorted by severity.
+///
+/// Serializes to lowercase strings (`"error"`, `"warning"`, `"info"`).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
+    /// Critical issue that must be resolved before the skill can be trusted.
     Error,
+    /// Potential issue that should be reviewed but may be acceptable.
     Warning,
+    /// Informational observation that does not affect the audit outcome.
     Info,
 }
 
@@ -19,33 +37,81 @@ impl fmt::Display for Severity {
     }
 }
 
+/// A single security finding detected by a scanner.
+///
+/// Each finding carries the rule it violates, a human-readable message,
+/// optional source location, and remediation guidance.
+///
+/// # Suppression
+///
+/// Findings can be suppressed either by inline comments (`# audit:ignore`) or
+/// by entries in a [`.oxidized-skills-ignore`](crate::config::Suppression) file.
+/// When suppressed, [`suppressed`](Finding::suppressed) is `true` and the
+/// finding is moved to [`AuditReport::suppressed`] instead of
+/// [`AuditReport::findings`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Finding {
+    /// Unique rule identifier (e.g., `"bash/CAT-A-001"`, `"prompt/P01"`).
     pub rule_id: String,
+    /// Human-readable description of the issue.
     pub message: String,
+    /// Severity level.
     pub severity: Severity,
+    /// Path to the source file, relative to the skill root.
     pub file: Option<PathBuf>,
+    /// 1-based line number inside the source file.
     pub line: Option<usize>,
+    /// 1-based column number inside the source file.
     pub column: Option<usize>,
+    /// Name of the scanner that produced this finding.
     pub scanner: String,
+    /// Code snippet showing the offending line.
     pub snippet: Option<String>,
+    /// Whether this finding has been suppressed.
     pub suppressed: bool,
+    /// Reason for suppression (from a suppression rule or inline marker).
     pub suppression_reason: Option<String>,
+    /// Guidance on how to resolve the issue.
     pub remediation: Option<String>,
 }
 
+/// Results from running a single [`Scanner`](crate::scanners::Scanner).
+///
+/// Scanners that are not installed on the host are represented as skipped
+/// results (see [`ScanResult::skipped`]).
 #[derive(Debug, serde::Serialize)]
 pub struct ScanResult {
+    /// Scanner identifier (matches [`Scanner::name`](crate::scanners::Scanner::name)).
     pub scanner_name: String,
+    /// Findings produced by this scan.
     pub findings: Vec<Finding>,
+    /// Number of files examined.
     pub files_scanned: usize,
+    /// `true` when the scanner did not run (e.g., external tool missing).
     pub skipped: bool,
+    /// Human-readable reason when `skipped` is `true`.
     pub skip_reason: Option<String>,
+    /// Error message if the scanner encountered a fatal error.
     pub error: Option<String>,
+    /// Wall-clock time for this scanner, in milliseconds.
     pub duration_ms: u64,
 }
 
 impl ScanResult {
+    /// Creates a [`ScanResult`] representing a skipped scanner.
+    ///
+    /// Use this when a scanner cannot run — for example because its external
+    /// tool is not installed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use oxidized_skills::finding::ScanResult;
+    ///
+    /// let result = ScanResult::skipped("semgrep", "semgrep not found on PATH");
+    /// assert!(result.skipped);
+    /// assert_eq!(result.findings.len(), 0);
+    /// ```
     pub fn skipped(name: &str, reason: &str) -> Self {
         ScanResult {
             scanner_name: name.to_string(),
@@ -59,21 +125,61 @@ impl ScanResult {
     }
 }
 
+/// Complete audit report for a single skill.
+///
+/// Created by [`AuditReport::from_results`] after all scanners have run.
+/// This is the main output of [`audit::run_audit`](crate::audit::run_audit)
+/// and is consumed by the [`output`](crate::output) formatters.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::Path;
+/// use oxidized_skills::{audit, config::Config};
+///
+/// let config = Config::load(None).unwrap();
+/// let report = audit::run_audit(Path::new("./my-skill"), &config);
+///
+/// println!("status: {:?}, errors: {}", report.status, report.error_count());
+/// ```
 #[derive(Debug, serde::Serialize)]
 pub struct AuditReport {
+    /// Name of the audited skill (derived from the directory name).
     pub skill: String,
+    /// Optional skill version (reserved for future use).
     pub version: Option<String>,
+    /// RFC 3339 timestamp of when the audit ran.
     pub audit_timestamp: String,
+    /// Overall audit outcome.
     pub status: AuditStatus,
+    /// Overall risk assessment.
     pub risk_level: RiskLevel,
+    /// Total number of files examined across all scanners.
     pub files_scanned: usize,
+    /// Per-scanner results (including skipped scanners).
     pub scanner_results: Vec<ScanResult>,
+    /// Active (non-suppressed) findings.
     pub findings: Vec<Finding>,
+    /// Suppressed findings (kept for transparency in reports).
     pub suppressed: Vec<Finding>,
+    /// Convenience flag: `true` when `status` is [`AuditStatus::Passed`].
     pub passed: bool,
 }
 
 impl AuditReport {
+    /// Builds an [`AuditReport`] from raw scanner results.
+    ///
+    /// This constructor:
+    /// 1. Separates suppressed findings from active ones.
+    /// 2. Applies file-level suppression rules.
+    /// 3. Computes [`AuditStatus`] and [`RiskLevel`].
+    ///
+    /// # Arguments
+    ///
+    /// * `skill`        — skill name (usually the directory basename).
+    /// * `results`      — scanner results to aggregate.
+    /// * `suppressions` — rules loaded from `.oxidized-skills-ignore`.
+    /// * `strict`       — when `true`, warnings are treated as failures.
     pub fn from_results(
         skill: &str,
         results: Vec<ScanResult>,
@@ -120,6 +226,7 @@ impl AuditReport {
         }
     }
 
+    /// Returns the number of active findings with [`Severity::Error`].
     pub fn error_count(&self) -> usize {
         self.findings
             .iter()
@@ -127,6 +234,7 @@ impl AuditReport {
             .count()
     }
 
+    /// Returns the number of active findings with [`Severity::Warning`].
     pub fn warning_count(&self) -> usize {
         self.findings
             .iter()
@@ -134,6 +242,7 @@ impl AuditReport {
             .count()
     }
 
+    /// Returns the number of active findings with [`Severity::Info`].
     pub fn info_count(&self) -> usize {
         self.findings
             .iter()
@@ -141,11 +250,12 @@ impl AuditReport {
             .count()
     }
 
-    /// Count errors, warnings, and info findings in a single pass.
+    /// Counts errors, warnings, and info findings in a single pass.
     ///
     /// Returns `(errors, warnings, info)`. Prefer this over calling
-    /// `error_count()` + `warning_count()` + `info_count()` separately when
-    /// all three values are needed at the same time (e.g. JSON output).
+    /// [`error_count`](Self::error_count), [`warning_count`](Self::warning_count),
+    /// and [`info_count`](Self::info_count) separately when all three values are
+    /// needed (avoids three iterations).
     pub fn count_by_severity(&self) -> (usize, usize, usize) {
         self.findings
             .iter()
@@ -157,20 +267,35 @@ impl AuditReport {
     }
 }
 
+/// Overall outcome of an audit.
+///
+/// The status is derived from the active (non-suppressed) findings and the
+/// [`StrictConfig`](crate::config::StrictConfig) setting.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AuditStatus {
+    /// No errors or warnings (or all were suppressed).
     Passed,
+    /// Warnings present, but no errors (and strict mode is off).
     Warning,
+    /// Errors present, or warnings in strict mode.
     Failed,
 }
 
+/// Risk level derived from the nature of the findings.
+///
+/// The classification considers whether critical patterns (RCE, backdoors,
+/// prompt injection) are present, not just the count of errors.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RiskLevel {
+    /// No active findings.
     Low,
+    /// Only warnings, no errors.
     Medium,
+    /// Errors present but none in critical categories.
     High,
+    /// Findings in critical categories (RCE, backdoor, prompt injection).
     Critical,
 }
 

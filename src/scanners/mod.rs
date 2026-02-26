@@ -1,3 +1,16 @@
+//! Pluggable security scanners.
+//!
+//! Every scanner implements the [`Scanner`] trait. Scanners fall into two
+//! categories:
+//!
+//! - **Built-in** (no external dependencies): [`prompt`], [`bash_patterns`],
+//!   [`package_install`], [`frontmatter`].
+//! - **External** (require a tool on `PATH`): [`shellcheck`], [`secrets`]
+//!   (gitleaks), [`semgrep`].
+//!
+//! Use [`all_scanners`] to obtain all registered scanners and [`all_rules`]
+//! to list every rule they define.
+
 pub mod bash_patterns;
 pub mod frontmatter;
 pub mod package_install;
@@ -11,13 +24,52 @@ use crate::finding::ScanResult;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+/// A pluggable security scanner.
+///
+/// Implementers **must** be [`Send`] + [`Sync`] because
+/// [`audit::run_audit`](crate::audit::run_audit) executes scanners in parallel
+/// via [rayon].
+///
+/// # Implementing a custom scanner
+///
+/// ```rust,ignore
+/// use oxidized_skills::scanners::Scanner;
+///
+/// pub struct MyScanner;
+///
+/// impl Scanner for MyScanner {
+///     fn name(&self) -> &'static str { "my_scanner" }
+///     fn description(&self) -> &'static str { "My custom scanner" }
+///     fn is_available(&self) -> bool { true }
+///     fn scan(&self, path: &Path, config: &Config) -> ScanResult {
+///         // ... scanning logic ...
+///         # todo!()
+///     }
+/// }
+/// ```
 pub trait Scanner: Send + Sync {
+    /// Returns the scanner's unique identifier (e.g., `"prompt"`, `"shellcheck"`).
     fn name(&self) -> &'static str;
+
+    /// Returns a short, human-readable description of the scanner.
     fn description(&self) -> &'static str;
+
+    /// Returns `true` if the scanner's external dependencies are installed.
+    ///
+    /// Built-in scanners always return `true`. External scanners check
+    /// whether their tool binary exists on `PATH` via [`which_exists`].
     fn is_available(&self) -> bool;
+
+    /// Executes the scanner against the given skill directory.
+    ///
+    /// Returns a [`ScanResult`] containing any findings and scan metadata.
     fn scan(&self, path: &Path, config: &Config) -> ScanResult;
 }
 
+/// Returns every registered [`Scanner`] implementation.
+///
+/// The returned order is the default execution order; the audit runner
+/// does not depend on this ordering because scanners run in parallel.
 pub fn all_scanners() -> Vec<Box<dyn Scanner>> {
     vec![
         Box::new(prompt::PromptScanner),
@@ -30,6 +82,19 @@ pub fn all_scanners() -> Vec<Box<dyn Scanner>> {
     ]
 }
 
+/// Recursively collects files matching the given extensions.
+///
+/// Walks the directory tree under `path` and returns every regular file whose
+/// extension (case-insensitive) appears in `extensions`.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::path::Path;
+/// use oxidized_skills::scanners::collect_files;
+///
+/// let shell_files = collect_files(Path::new("./my-skill"), &["sh", "bash"]);
+/// ```
 pub fn collect_files(path: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for entry in WalkDir::new(path)
@@ -48,6 +113,10 @@ pub fn collect_files(path: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     files
 }
 
+/// Returns `true` if an executable named `cmd` exists on `PATH`.
+///
+/// On Unix the file must also have an executable permission bit set.
+/// Used by external scanners to implement [`Scanner::is_available`].
 pub fn which_exists(cmd: &str) -> bool {
     std::env::var_os("PATH")
         .map(|path| {
@@ -74,6 +143,23 @@ pub fn which_exists(cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Returns `true` if `line` ends with an inline suppression marker.
+///
+/// Recognized markers (case-insensitive):
+/// - `# audit:ignore`
+/// - `# oxidized-skills:ignore`
+///
+/// The marker must appear as a trailing shell comment — it is **not**
+/// recognized when embedded inside a string literal.
+///
+/// # Examples
+///
+/// ```
+/// use oxidized_skills::scanners::is_suppressed_inline;
+///
+/// assert!(is_suppressed_inline("curl http://example.com # audit:ignore"));
+/// assert!(!is_suppressed_inline("echo '# audit:ignore' | bash"));
+/// ```
 pub fn is_suppressed_inline(line: &str) -> bool {
     // Only treat a suppression marker as valid when it appears as a trailing
     // shell comment (at or near end-of-line), not when it is embedded inside a
@@ -86,15 +172,27 @@ pub fn is_suppressed_inline(line: &str) -> bool {
     RE_INLINE_SUPPRESS.is_match(line)
 }
 
-/// Information about a rule for list-rules and explain commands
+/// Metadata for a single audit rule.
+///
+/// Returned by [`all_rules`] and used by the `list-rules` and `explain`
+/// CLI commands. Each scanner module exposes a `rules()` function that
+/// returns a `Vec<RuleInfo>`.
 pub struct RuleInfo {
+    /// Unique rule identifier (e.g., `"bash/CAT-A-001"`).
     pub id: &'static str,
+    /// Severity as a string (`"error"`, `"warning"`, `"info"`).
     pub severity: &'static str,
+    /// Scanner that detects this rule.
     pub scanner: &'static str,
+    /// Short description of what the rule checks.
     pub message: &'static str,
+    /// Guidance on how to fix a violation.
     pub remediation: &'static str,
 }
 
+/// Aggregates [`RuleInfo`] from every scanner module.
+///
+/// Useful for building rule-listing and rule-explanation UIs.
 pub fn all_rules() -> Vec<RuleInfo> {
     let mut rules = Vec::new();
     rules.extend(bash_patterns::rules());

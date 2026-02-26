@@ -1,13 +1,43 @@
+//! Secret scanning via [gitleaks](https://github.com/gitleaks/gitleaks).
+//!
+//! This is an **external** scanner — it requires the `gitleaks` binary to
+//! be installed on `PATH`.  When `gitleaks` is not found the scanner is
+//! automatically marked as *skipped* by the audit runner.
+//!
+//! # How it works
+//!
+//! 1. Spawns `gitleaks detect --source <path> --no-git --report-format json
+//!    --report-path <tmpfile>`.
+//! 2. Parses the JSON report into [`Finding`] structs.
+//! 3. Maps every leak to severity [`Error`](crate::finding::Severity::Error).
+//! 4. Cleans up the temporary report file.
+//!
+//! # Exit codes
+//!
+//! - **0** — no leaks found.
+//! - **1** — leaks found (expected; findings are returned).
+//! - **≥ 2** — gitleaks error (e.g. 126/127 = binary not runnable).
+//!
+//! # Representative rules
+//!
+//! The [`rules`] function lists a representative subset of gitleaks rules.
+//! At runtime, findings are tagged dynamically as `secrets/<RuleID>` based
+//! on whatever gitleaks reports.
+
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
 use crate::scanners::{which_exists, RuleInfo, Scanner};
 use std::path::Path;
 use std::time::Instant;
 
-/// Secrets scanner wrapper using `gitleaks`.
+/// External scanner wrapper for [gitleaks](https://github.com/gitleaks/gitleaks).
 ///
-/// Runs `gitleaks detect --source <path> --no-git --report-format json
-/// --report-path <tmpfile>` and parses the resulting JSON report file.
+/// Runs `gitleaks detect` in `--no-git` mode against the skill directory,
+/// writing results to a temporary JSON file that is parsed and converted
+/// into [`Finding`] structs.  Every detected secret is reported at
+/// [`Severity::Error`].
+///
+/// Requires `gitleaks` on `PATH`; see [`is_available`](Scanner::is_available).
 pub struct SecretsScanner;
 
 impl Scanner for SecretsScanner {
@@ -193,6 +223,12 @@ impl Scanner for SecretsScanner {
     }
 }
 
+/// Returns a representative [`RuleInfo`] catalogue for the secrets scanner.
+///
+/// Because gitleaks ships with 100+ built-in rules that are updated
+/// independently of this crate, only the most common rule IDs are listed
+/// here.  At runtime, findings use the actual `RuleID` from the gitleaks
+/// report (e.g. `secrets/aws-access-key`).
 pub fn rules() -> Vec<RuleInfo> {
     vec![
         RuleInfo {

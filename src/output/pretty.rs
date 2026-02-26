@@ -1,6 +1,20 @@
+//! Human-readable colored text formatter.
+//!
+//! Produces a terminal-friendly report with ANSI color codes, showing scanner
+//! statuses, individual findings with source locations, suppressed items, and
+//! a one-line summary.
+
 use crate::finding::{AuditReport, AuditStatus, Severity};
 use colored::Colorize;
 
+/// Formats an [`AuditReport`] as human-readable, ANSI-colored text.
+///
+/// Sections rendered (in order):
+/// 1. **Header** — skill name and timestamp.
+/// 2. **Scanners** — per-scanner pass/fail/skip status.
+/// 3. **Findings** — active findings with severity, rule, location, and snippet.
+/// 4. **Suppressed** — suppressed findings with reasons.
+/// 5. **Summary** — overall status and severity counts.
 pub fn format(report: &AuditReport) -> String {
     let mut out = String::new();
 
