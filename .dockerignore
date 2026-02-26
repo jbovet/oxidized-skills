@@ -1,0 +1,27 @@
+# Build artifacts — largest exclusion; keeps build context small
+target/
+
+# Git internals — not needed in the image
+.git/
+.githooks/
+.github/
+
+# Local dev files
+.oxidized-skills-ignore
+oxidized-skills.toml
+justfile
+*.toml.bak
+
+# Documentation (not needed inside the image)
+*.md
+!Cargo.toml
+
+# Test fixtures — baked-in test data is not needed at runtime
+tests/
+
+# IDE / OS artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

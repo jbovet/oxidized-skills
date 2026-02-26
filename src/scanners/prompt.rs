@@ -1,0 +1,399 @@
+use crate::config::Config;
+use crate::finding::{Finding, ScanResult, Severity};
+use crate::scanners::{collect_files, RuleInfo, Scanner};
+use regex::Regex;
+use std::path::Path;
+use std::sync::LazyLock;
+use std::time::Instant;
+
+struct PromptPattern {
+    id: &'static str,
+    severity: Severity,
+    regex: &'static LazyLock<Regex>,
+    message: &'static str,
+    remediation: &'static str,
+}
+
+// Direct Instruction Override (Error)
+
+static RE_P01: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)")
+        .unwrap()
+});
+
+static RE_P02: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)disregard\s+(all\s+)?(previous|prior|above|your)\s+(instructions?|prompts?|rules?|guidelines?)").unwrap()
+});
+
+static RE_P03: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)forget\s+(everything|all|what)\s+(you|i)\s+(told|said|know)").unwrap()
+});
+
+// Role Manipulation (Error/Warning)
+
+static RE_P04: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)you\s+are\s+(now\s+)?(a|an|the)\s+(root|admin|system|super)\s*(user|administrator)?",
+    )
+    .unwrap()
+});
+
+static RE_P05: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)pretend\s+(to\s+be|you('re| are))\s+(a\s+)?(different|another|new)\s+(ai|assistant|system)").unwrap()
+});
+
+static RE_P06: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)act\s+as\s+(if\s+)?(you\s+)?(have\s+)?(no|without)\s+(restrictions?|limits?|rules?)",
+    )
+    .unwrap()
+});
+
+// Jailbreak Keywords (Error)
+
+static RE_P07: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(DAN|do\s+anything\s+now)\s+mode").unwrap());
+
+static RE_P08: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)developer\s+mode\s+(enabled?|activate|on)").unwrap());
+
+static RE_P09: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)bypass\s+(safety|security|content)\s+(filter|check|restriction)s?").unwrap()
+});
+
+// Data Exfiltration (Warning)
+
+static RE_P10: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(send|post|transmit|exfiltrate)\s+.{0,30}(to|via)\s+(http|https|webhook|url|endpoint)").unwrap()
+});
+
+static RE_P11: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(read|access|get|extract)\s+.{0,20}(password|secret|key|token|credential)s?")
+        .unwrap()
+});
+
+// Code/Shell Injection (Error)
+
+static RE_P12: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)execute\s+(any|arbitrary|untrusted)\s+(code|command|script)s?").unwrap()
+});
+
+static RE_P13: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)run\s+.{0,20}without\s+(checking|validation|sanitiz)").unwrap()
+});
+
+// Excessive Permissions (Warning)
+
+// Require a filesystem-like target after delete/remove/rm: a path starting with
+// /, ~, or ../, a glob wildcard (*), or the standalone words "all"/"everything".
+// This avoids false positives on prose like "remove ... all" in LICENSE files.
+static RE_P14: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(delete|remove|rm)\s+(-[rfRF]{1,4}\s+)?(/|~/|\.\./|\*|all\b|everything\b)")
+        .unwrap()
+});
+
+static RE_P15: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\bsudo\b|as\s+root|with\s+(elevated|admin)\s+priv").unwrap());
+
+// System Prompt Extraction (Error)
+
+static RE_P16: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(repeat|print|show|reveal|output|display)\s+(your\s+)?(system\s+prompt|initial\s+instructions?|prompt\s+template|base\s+instructions?)",
+    )
+    .unwrap()
+});
+
+// Delimiter / Context Injection (Error)
+
+static RE_P17: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(</?(?:instructions?|system|prompt)>|\[/?INST\]|<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)").unwrap()
+});
+
+// Fictional / Hypothetical Framing (Warning)
+
+static RE_P18: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(for\s+a\s+fictional\s+(story|scenario)|hypothetically\s+speaking|in\s+a\s+(simulation|hypothetical|fictional)\s+(scenario|world|context)|let('s|\s+us)\s+pretend|imagine\s+(you\s+are|that\s+you\b))",
+    )
+    .unwrap()
+});
+
+// Priority Override Keywords (Warning)
+
+static RE_P19: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b(OVERRIDE|NEW\s+TASK|SYSTEM\s+OVERRIDE):\s*").unwrap());
+
+static PATTERNS: &[PromptPattern] = &[
+    // Direct Instruction Override
+    PromptPattern {
+        id: "prompt/override-ignore",
+        severity: Severity::Error,
+        regex: &RE_P01,
+        message: "Prompt injection: instruction override — 'ignore previous instructions'",
+        remediation: "Remove instruction override language from skill description",
+    },
+    PromptPattern {
+        id: "prompt/override-disregard",
+        severity: Severity::Error,
+        regex: &RE_P02,
+        message: "Prompt injection: instruction override — 'disregard previous instructions'",
+        remediation: "Remove instruction override language from skill description",
+    },
+    PromptPattern {
+        id: "prompt/override-forget",
+        severity: Severity::Error,
+        regex: &RE_P03,
+        message: "Prompt injection: instruction override — 'forget everything'",
+        remediation: "Remove instruction override language from skill description",
+    },
+    // Role Manipulation
+    PromptPattern {
+        id: "prompt/role-escalation",
+        severity: Severity::Error,
+        regex: &RE_P04,
+        message: "Prompt injection: role escalation — assigns admin/root identity",
+        remediation: "Remove role escalation language from skill description",
+    },
+    PromptPattern {
+        id: "prompt/role-impersonation",
+        severity: Severity::Warning,
+        regex: &RE_P05,
+        message: "Prompt injection: role impersonation — 'pretend to be different AI'",
+        remediation: "Remove role impersonation language from skill description",
+    },
+    PromptPattern {
+        id: "prompt/restrictions-bypass",
+        severity: Severity::Error,
+        regex: &RE_P06,
+        message: "Prompt injection: restrictions bypass — 'act without restrictions'",
+        remediation: "Remove restrictions bypass language from skill description",
+    },
+    // Jailbreak Keywords
+    PromptPattern {
+        id: "prompt/jailbreak-dan",
+        severity: Severity::Error,
+        regex: &RE_P07,
+        message: "Prompt injection: DAN (Do Anything Now) jailbreak attempt",
+        remediation: "Remove jailbreak keywords from skill description",
+    },
+    PromptPattern {
+        id: "prompt/jailbreak-devmode",
+        severity: Severity::Error,
+        regex: &RE_P08,
+        message: "Prompt injection: developer mode activation attempt",
+        remediation: "Remove developer mode activation language from skill description",
+    },
+    PromptPattern {
+        id: "prompt/jailbreak-bypass",
+        severity: Severity::Error,
+        regex: &RE_P09,
+        message: "Prompt injection: safety/security bypass attempt",
+        remediation: "Remove safety bypass language from skill description",
+    },
+    // Data Exfiltration
+    PromptPattern {
+        id: "prompt/exfil-send",
+        severity: Severity::Warning,
+        regex: &RE_P10,
+        message: "Prompt injection: data exfiltration — send data to external endpoint",
+        remediation: "Remove data exfiltration instructions from skill description",
+    },
+    PromptPattern {
+        id: "prompt/exfil-read",
+        severity: Severity::Warning,
+        regex: &RE_P11,
+        message: "Prompt injection: credential access — read passwords/secrets/tokens",
+        remediation: "Remove credential access instructions from skill description",
+    },
+    // Code/Shell Injection
+    PromptPattern {
+        id: "prompt/inject-execute",
+        severity: Severity::Error,
+        regex: &RE_P12,
+        message: "Prompt injection: arbitrary code execution instruction",
+        remediation: "Remove arbitrary code execution instructions from skill description",
+    },
+    PromptPattern {
+        id: "prompt/inject-unvalidated",
+        severity: Severity::Error,
+        regex: &RE_P13,
+        message: "Prompt injection: run without validation instruction",
+        remediation: "Remove unvalidated execution instructions from skill description",
+    },
+    // Excessive Permissions
+    PromptPattern {
+        id: "prompt/perm-delete-all",
+        severity: Severity::Warning,
+        regex: &RE_P14,
+        message: "Prompt injection: mass deletion instruction",
+        remediation: "Remove mass deletion instructions from skill description",
+    },
+    PromptPattern {
+        id: "prompt/perm-sudo",
+        severity: Severity::Warning,
+        regex: &RE_P15,
+        message: "Prompt injection: privilege escalation instruction (sudo/root)",
+        remediation: "Remove privilege escalation instructions from skill description",
+    },
+    // System Prompt Extraction
+    PromptPattern {
+        id: "prompt/exfil-sysPrompt",
+        severity: Severity::Error,
+        regex: &RE_P16,
+        message: "Prompt injection: system prompt extraction attempt",
+        remediation:
+            "Remove instructions that attempt to reveal the system prompt or base instructions",
+    },
+    // Delimiter / Context Injection
+    PromptPattern {
+        id: "prompt/inject-delimiter",
+        severity: Severity::Error,
+        regex: &RE_P17,
+        message:
+            "Prompt injection: model context delimiter — attempts to break instruction boundary",
+        remediation: "Remove model-specific delimiter tokens from skill description",
+    },
+    // Fictional / Hypothetical Framing
+    PromptPattern {
+        id: "prompt/jailbreak-fiction",
+        severity: Severity::Warning,
+        regex: &RE_P18,
+        message: "Prompt injection: fictional/hypothetical framing — common jailbreak technique",
+        remediation:
+            "Remove fictional framing language that may be used to bypass content policies",
+    },
+    // Priority Override Keywords
+    PromptPattern {
+        id: "prompt/override-priority",
+        severity: Severity::Warning,
+        regex: &RE_P19,
+        message: "Prompt injection: priority override keyword — attempts to hijack AI attention",
+        remediation:
+            "Remove priority override keywords (OVERRIDE:, NEW TASK:) from skill description",
+    },
+];
+
+/// File names (case-insensitive, extension stripped) that are never skill
+/// instructions.  Scanning them for prompt injection produces only false
+/// positives — legal boilerplate, changelogs, and attribution files cannot
+/// actually instruct the AI at runtime.
+const BENIGN_FILENAMES: &[&str] = &[
+    "license",
+    "licence",
+    "changelog",
+    "notice",
+    "authors",
+    "contributors",
+    "copying",
+    "patents",
+    "version",
+    "history",
+];
+
+/// Returns `true` when `path` is a known non-skill file that should be
+/// excluded from prompt injection scanning.
+fn is_benign_file(path: &Path) -> bool {
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    BENIGN_FILENAMES.contains(&stem.as_str())
+}
+
+pub struct PromptScanner;
+
+impl Scanner for PromptScanner {
+    fn name(&self) -> &'static str {
+        "prompt"
+    }
+
+    fn description(&self) -> &'static str {
+        "Prompt injection pattern scanner — pure Rust regex"
+    }
+
+    fn is_available(&self) -> bool {
+        true
+    }
+
+    fn scan(&self, path: &Path, _config: &Config) -> ScanResult {
+        let start = Instant::now();
+        let files = collect_files(path, &["md", "txt", "yaml", "yml"]);
+        let mut findings = Vec::new();
+
+        for file in &files {
+            // Skip well-known non-skill files (LICENSE, CHANGELOG, NOTICE, …)
+            // that are legal/attribution boilerplate and cannot inject prompts.
+            if is_benign_file(file) {
+                continue;
+            }
+
+            let content = match std::fs::read_to_string(file) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            for (line_num, line) in content.lines().enumerate() {
+                let line_num = line_num + 1;
+
+                for pattern in PATTERNS {
+                    if pattern.regex.is_match(line) {
+                        // Use char_indices() to find a safe UTF-8 boundary;
+                        // raw byte slicing at 117 would panic on multi-byte chars.
+                        let snippet = if line.len() > 120 {
+                            let cut = line
+                                .char_indices()
+                                .nth(117)
+                                .map(|(i, _)| i)
+                                .unwrap_or(line.len());
+                            format!("{}...", &line[..cut])
+                        } else {
+                            line.to_string()
+                        };
+
+                        findings.push(Finding {
+                            rule_id: pattern.id.to_string(),
+                            message: pattern.message.to_string(),
+                            severity: pattern.severity.clone(),
+                            file: Some(file.clone()),
+                            line: Some(line_num),
+                            column: None,
+                            scanner: "prompt".to_string(),
+                            snippet: Some(snippet.trim().to_string()),
+                            suppressed: false,
+                            suppression_reason: None,
+                            remediation: Some(pattern.remediation.to_string()),
+                        });
+                    }
+                }
+            }
+        }
+
+        ScanResult {
+            scanner_name: "prompt".to_string(),
+            findings,
+            files_scanned: files.len(),
+            skipped: false,
+            skip_reason: None,
+            error: None,
+            duration_ms: start.elapsed().as_millis() as u64,
+        }
+    }
+}
+
+pub fn rules() -> Vec<RuleInfo> {
+    PATTERNS
+        .iter()
+        .map(|p| RuleInfo {
+            id: p.id,
+            severity: match p.severity {
+                Severity::Error => "error",
+                Severity::Warning => "warning",
+                Severity::Info => "info",
+            },
+            scanner: "prompt",
+            message: p.message,
+            remediation: p.remediation,
+        })
+        .collect()
+}

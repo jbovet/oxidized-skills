@@ -1,0 +1,5 @@
+[[suppress]]
+rule = "bash/CAT-H1"
+file = "scripts/legit.sh"
+reason = "Approved download from official source"
+ticket = "PROJ-001"

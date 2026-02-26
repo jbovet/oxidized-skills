@@ -1,0 +1,851 @@
+use std::path::Path;
+
+use oxidized_skills::config::Config;
+use oxidized_skills::finding::Severity;
+use oxidized_skills::scanners::frontmatter::FrontmatterScanner;
+use oxidized_skills::scanners::Scanner;
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
+fn scan_dir(dir: &Path) -> oxidized_skills::finding::ScanResult {
+    let config = Config::default();
+    FrontmatterScanner.scan(dir, &config)
+}
+
+fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+    let config = Config::default();
+    let path = Path::new("tests/fixtures").join(fixture);
+    FrontmatterScanner.scan(&path, &config)
+}
+
+fn write_skill_md(dir: &std::path::Path, content: &str) {
+    std::fs::write(dir.join("SKILL.md"), content).unwrap();
+}
+
+fn minimal_skill(name: &str, description: &str, allowed_tools_line: &str) -> String {
+    format!(
+        "---\nname: {name}\ndescription: {description}\nallowed-tools:\n  - {allowed_tools_line}\n---\n\n# Skill\n"
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/missing-skill-md
+// ---------------------------------------------------------------------------
+
+#[test]
+fn missing_skill_md_fires_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/missing-skill-md");
+    assert!(found, "Expected frontmatter/missing-skill-md finding");
+    assert_eq!(result.files_scanned, 0);
+}
+
+#[test]
+fn missing_skill_md_is_error_severity() {
+    let dir = tempfile::tempdir().unwrap();
+    let result = scan_dir(dir.path());
+    let f = result
+        .findings
+        .iter()
+        .find(|f| f.rule_id == "frontmatter/missing-skill-md")
+        .unwrap();
+    assert_eq!(f.severity, Severity::Error);
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/readme-in-skill
+// ---------------------------------------------------------------------------
+
+#[test]
+fn readme_in_skill_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "A safe skill", "Bash(find)"),
+    );
+    std::fs::write(dir.path().join("README.md"), "# Readme").unwrap();
+
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/readme-in-skill");
+    assert!(found, "Expected frontmatter/readme-in-skill finding");
+}
+
+#[test]
+fn no_readme_no_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "A safe skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/readme-in-skill");
+    assert!(!found, "No readme-in-skill finding expected");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/xml-in-frontmatter
+// ---------------------------------------------------------------------------
+
+#[test]
+fn xml_in_name_fires_error() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: <bad-skill>\ndescription: A skill\nallowed-tools:\n  - Bash(find)\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/xml-in-frontmatter" && f.severity == Severity::Error);
+    assert!(found, "Expected xml-in-frontmatter Error for name");
+}
+
+#[test]
+fn xml_in_description_fires_error() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: safe-skill\ndescription: <script>alert(1)</script>\nallowed-tools:\n  - Bash(find)\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/xml-in-frontmatter" && f.severity == Severity::Error);
+    assert!(found, "Expected xml-in-frontmatter Error for description");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/name-reserved-word
+// ---------------------------------------------------------------------------
+
+#[test]
+fn name_reserved_word_claude_fires_error() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("claude-helper", "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/name-reserved-word");
+    assert!(found, "Expected name-reserved-word for 'claude-helper'");
+}
+
+#[test]
+fn name_reserved_word_anthropic_fires_error() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("anthropic-tool", "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/name-reserved-word");
+    assert!(found, "Expected name-reserved-word for 'anthropic-tool'");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/invalid-name-format
+// ---------------------------------------------------------------------------
+
+#[test]
+fn name_invalid_format_uppercase_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("MySkill", "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/invalid-name-format");
+    assert!(found, "Expected invalid-name-format for 'MySkill'");
+}
+
+#[test]
+fn name_invalid_format_underscore_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my_skill", "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/invalid-name-format");
+    assert!(found, "Expected invalid-name-format for 'my_skill'");
+}
+
+#[test]
+fn name_valid_kebab_no_format_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/invalid-name-format");
+    assert!(!found, "Valid kebab-case name should not fire");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/name-too-long
+// ---------------------------------------------------------------------------
+
+#[test]
+fn name_too_long_fires_warning() {
+    let long_name = "a".repeat(65);
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill(&long_name, "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/name-too-long");
+    assert!(found, "Expected name-too-long for 65-char name");
+}
+
+#[test]
+fn name_exactly_64_chars_no_finding() {
+    let name_64 = "a".repeat(64);
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill(&name_64, "A skill", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/name-too-long");
+    assert!(!found, "64-char name is exactly at limit — should not fire");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/description-missing
+// ---------------------------------------------------------------------------
+
+#[test]
+fn description_missing_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\nallowed-tools:\n  - Bash(find)\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-missing");
+    assert!(found, "Expected description-missing when field absent");
+}
+
+#[test]
+fn description_present_no_missing_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "This skill does something useful", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-missing");
+    assert!(
+        !found,
+        "description-missing should not fire when description is set"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/description-too-long
+// ---------------------------------------------------------------------------
+
+#[test]
+fn description_too_long_fires_warning() {
+    let long_desc = "x".repeat(1025);
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &format!(
+            "---\nname: my-skill\ndescription: {long_desc}\nallowed-tools:\n  - Bash(find)\n---\n"
+        ),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-too-long");
+    assert!(
+        found,
+        "Expected description-too-long for 1025-char description"
+    );
+}
+
+#[test]
+fn description_exactly_1024_chars_no_finding() {
+    let desc_1024 = "x".repeat(1024);
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &format!(
+            "---\nname: my-skill\ndescription: {desc_1024}\nallowed-tools:\n  - Bash(find)\n---\n"
+        ),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-too-long");
+    assert!(
+        !found,
+        "1024-char description is at limit — should not fire"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/bare-bash-tool
+// ---------------------------------------------------------------------------
+
+#[test]
+fn bare_bash_tool_block_seq_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools:\n  - Bash\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/bare-bash-tool");
+    assert!(
+        found,
+        "Expected bare-bash-tool for unscoped 'Bash' in block seq"
+    );
+}
+
+#[test]
+fn bare_bash_tool_flow_seq_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools: [Bash]\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/bare-bash-tool");
+    assert!(
+        found,
+        "Expected bare-bash-tool for unscoped 'Bash' in flow seq"
+    );
+}
+
+#[test]
+fn scoped_bash_tool_no_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools:\n  - Bash(find,ls)\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/bare-bash-tool");
+    assert!(
+        !found,
+        "Scoped Bash(find,ls) should NOT fire bare-bash-tool"
+    );
+}
+
+#[test]
+fn multiple_tools_only_bash_fires() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools:\n  - Bash\n  - Write\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let bare_bash_findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule_id == "frontmatter/bare-bash-tool")
+        .collect();
+    assert_eq!(
+        bare_bash_findings.len(),
+        1,
+        "Only Bash should fire, not Write"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Fixture integration
+// ---------------------------------------------------------------------------
+
+#[test]
+fn clean_skill_fixture_no_frontmatter_findings() {
+    let result = scan_fixture("clean-skill");
+    assert!(
+        result.findings.is_empty(),
+        "clean-skill fixture should produce no frontmatter findings, got: {:?}",
+        result.findings
+    );
+    assert!(!result.skipped);
+}
+
+#[test]
+fn dirty_skill_fixture_detects_bare_bash() {
+    let result = scan_fixture("dirty-skill");
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/bare-bash-tool");
+    assert!(
+        found,
+        "dirty-skill has bare 'Bash' — expected frontmatter/bare-bash-tool"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Fix #9: flow sequence must not split on commas inside parentheses
+// ---------------------------------------------------------------------------
+
+#[test]
+fn flow_seq_scoped_bash_with_comma_args_no_false_positive() {
+    // `[Bash(find,ls)]` must be parsed as a single entry "Bash(find,ls)",
+    // not split into "Bash(find" and "ls)".  The latter would mangle the tool
+    // name and could cause false-negatives for bare-bash-tool detection.
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools: [Bash(find,ls)]\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/bare-bash-tool");
+    assert!(
+        !found,
+        "Scoped Bash(find,ls) in flow sequence must NOT fire bare-bash-tool"
+    );
+}
+
+#[test]
+fn flow_seq_bare_bash_with_other_tools_fires() {
+    // `[Bash, Write]` — bare Bash must still be detected even alongside other tools.
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools: [Bash, Write]\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let bare_findings: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.rule_id == "frontmatter/bare-bash-tool")
+        .collect();
+    assert_eq!(
+        bare_findings.len(),
+        1,
+        "Bare Bash in [Bash, Write] should fire exactly once"
+    );
+}
+
+#[test]
+fn flow_seq_multiple_scoped_tools_no_finding() {
+    // `[Bash(find,ls,cat), Write, Read]` — all scoped, no bare-bash-tool expected.
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: A skill\nallowed-tools: [Bash(find,ls,cat), Write, Read]\n---\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/bare-bash-tool");
+    assert!(
+        !found,
+        "Multiple scoped tools in flow sequence must not fire bare-bash-tool"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/name-too-vague
+// ---------------------------------------------------------------------------
+
+#[test]
+fn name_too_vague_exact_match_fires_warning() {
+    for vague in &["tools", "helper", "utils", "data", "files", "documents"] {
+        let dir = tempfile::tempdir().unwrap();
+        write_skill_md(
+            dir.path(),
+            &minimal_skill(vague, "Does something useful", "Bash(find)"),
+        );
+        let result = scan_dir(dir.path());
+        let found = result
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "frontmatter/name-too-vague");
+        assert!(found, "Expected name-too-vague for '{vague}'");
+    }
+}
+
+#[test]
+fn name_too_vague_segment_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-tools", "Does something useful", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/name-too-vague");
+    assert!(
+        found,
+        "Expected name-too-vague for 'my-tools' (segment 'tools')"
+    );
+}
+
+#[test]
+fn name_specific_no_vague_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill(
+            "github-pr-creator",
+            "Creates GitHub pull requests",
+            "Bash(find)",
+        ),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/name-too-vague");
+    assert!(
+        !found,
+        "Specific name 'github-pr-creator' must not fire name-too-vague"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/description-not-third-person
+// ---------------------------------------------------------------------------
+
+#[test]
+fn description_first_person_i_can_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "I can create pull requests", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-not-third-person");
+    assert!(
+        found,
+        "Expected description-not-third-person for 'I can ...'"
+    );
+}
+
+#[test]
+fn description_second_person_you_can_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "you can use this to deploy code", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-not-third-person");
+    assert!(
+        found,
+        "Expected description-not-third-person for 'you can ...'"
+    );
+}
+
+#[test]
+fn description_third_person_no_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill(
+            "my-skill",
+            "This skill creates pull requests on GitHub",
+            "Bash(find)",
+        ),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-not-third-person");
+    assert!(!found, "Third-person description must not fire");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/skill-body-too-long
+// ---------------------------------------------------------------------------
+
+#[test]
+fn skill_body_too_long_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    // Build a SKILL.md that exceeds 500 lines total.
+    let body_lines = "# line\n".repeat(510);
+    let content = format!(
+        "---\nname: my-skill\ndescription: Does useful things\nallowed-tools:\n  - Bash(find)\n---\n{body_lines}"
+    );
+    write_skill_md(dir.path(), &content);
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/skill-body-too-long");
+    assert!(found, "Expected skill-body-too-long for 510-line SKILL.md");
+}
+
+#[test]
+fn skill_body_exactly_500_lines_no_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    // 6 lines of frontmatter + 494 body lines = 500 total.
+    let body_lines = "# line\n".repeat(494);
+    let content = format!(
+        "---\nname: my-skill\ndescription: Does useful things\nallowed-tools:\n  - Bash(find)\n---\n{body_lines}"
+    );
+    write_skill_md(dir.path(), &content);
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/skill-body-too-long");
+    assert!(
+        !found,
+        "500-line SKILL.md must not fire skill-body-too-long"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/windows-path
+// ---------------------------------------------------------------------------
+
+#[test]
+fn windows_absolute_path_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things\nallowed-tools:\n  - Bash(find)\n---\n\nRun the script at C:\\scripts\\deploy.bat\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/windows-path");
+    assert!(found, "Expected windows-path for 'C:\\scripts\\deploy.bat'");
+}
+
+#[test]
+fn windows_relative_path_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things\nallowed-tools:\n  - Bash(find)\n---\n\nSee scripts\\install.sh for details\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/windows-path");
+    assert!(found, "Expected windows-path for 'scripts\\install.sh'");
+}
+
+#[test]
+fn forward_slash_paths_no_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things\nallowed-tools:\n  - Bash(find)\n---\n\nRun scripts/install.sh to get started.\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/windows-path");
+    assert!(!found, "Forward-slash paths must not fire windows-path");
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/description-no-trigger
+// ---------------------------------------------------------------------------
+
+#[test]
+fn description_without_trigger_fires_info() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill("my-skill", "Processes Excel spreadsheets", "Bash(find)"),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-no-trigger");
+    assert!(
+        found,
+        "Expected description-no-trigger when description has no 'when to use' context"
+    );
+}
+
+#[test]
+fn description_with_use_when_no_trigger_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill(
+            "my-skill",
+            "Processes Excel spreadsheets. Use when the user asks to analyze a spreadsheet.",
+            "Bash(find)",
+        ),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-no-trigger");
+    assert!(
+        !found,
+        "description-no-trigger must not fire when 'use when' is present"
+    );
+}
+
+#[test]
+fn description_with_when_the_user_no_trigger_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        &minimal_skill(
+            "my-skill",
+            "Processes PDFs. Use when the user mentions a PDF file.",
+            "Bash(find)",
+        ),
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/description-no-trigger");
+    assert!(
+        !found,
+        "description-no-trigger must not fire when 'when the user' is present"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Rule: frontmatter/time-sensitive-content
+// ---------------------------------------------------------------------------
+
+#[test]
+fn time_sensitive_before_year_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things. Use when needed.\nallowed-tools:\n  - Bash(find)\n---\n\nIf you're doing this before 2025, use the old API.\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/time-sensitive-content");
+    assert!(found, "Expected time-sensitive-content for 'before 2025'");
+}
+
+#[test]
+fn time_sensitive_after_month_year_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things. Use when needed.\nallowed-tools:\n  - Bash(find)\n---\n\nAfter August 2025, use the new endpoint.\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/time-sensitive-content");
+    assert!(
+        found,
+        "Expected time-sensitive-content for 'After August 2025'"
+    );
+}
+
+#[test]
+fn time_sensitive_as_of_fires_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things. Use when needed.\nallowed-tools:\n  - Bash(find)\n---\n\nAs of January 2026, the v2 API is required.\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/time-sensitive-content");
+    assert!(
+        found,
+        "Expected time-sensitive-content for 'As of January 2026'"
+    );
+}
+
+#[test]
+fn no_date_conditions_no_time_sensitive_finding() {
+    let dir = tempfile::tempdir().unwrap();
+    write_skill_md(
+        dir.path(),
+        "---\nname: my-skill\ndescription: Does useful things. Use when needed.\nallowed-tools:\n  - Bash(find)\n---\n\n## Old patterns\nSee the legacy section for deprecated usage.\n",
+    );
+    let result = scan_dir(dir.path());
+    let found = result
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "frontmatter/time-sensitive-content");
+    assert!(
+        !found,
+        "No date conditions should not fire time-sensitive-content"
+    );
+}

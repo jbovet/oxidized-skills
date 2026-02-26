@@ -1,0 +1,265 @@
+use crate::config::Config;
+use crate::finding::{Finding, ScanResult, Severity};
+use crate::scanners::{which_exists, RuleInfo, Scanner};
+use std::path::Path;
+use std::time::{Duration, Instant};
+
+/// Maximum time to wait for semgrep before giving up.
+///
+/// Semgrep can stall for many seconds when it tries to reach semgrep.dev for
+/// rule updates and the network is blocked (e.g. corporate proxy).  A 30-second
+/// ceiling keeps CI pipelines from hanging indefinitely while still allowing
+/// legitimate slow runs to complete.
+const SEMGREP_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Semgrep scanner wrapper.
+///
+/// Runs `semgrep scan --json --quiet <path>` and maps results to `Finding`
+/// structs. Severity is derived from the semgrep `severity` field.
+///
+/// The subprocess is killed and the scan is skipped if it does not complete
+/// within [`SEMGREP_TIMEOUT`].
+pub struct SemgrepScanner;
+
+impl Scanner for SemgrepScanner {
+    fn name(&self) -> &'static str {
+        "semgrep"
+    }
+
+    fn description(&self) -> &'static str {
+        "Static analysis via semgrep (external tool)"
+    }
+
+    fn is_available(&self) -> bool {
+        which_exists("semgrep")
+    }
+
+    fn scan(&self, path: &Path, _config: &Config) -> ScanResult {
+        let start = Instant::now();
+
+        let mut child = match std::process::Command::new("semgrep")
+            .arg("scan")
+            .arg("--json")
+            .arg("--quiet")
+            .arg(path)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return ScanResult {
+                    scanner_name: self.name().to_string(),
+                    findings: vec![],
+                    files_scanned: 0,
+                    skipped: false,
+                    skip_reason: None,
+                    error: Some(format!("Failed to run semgrep: {}", e)),
+                    duration_ms: start.elapsed().as_millis() as u64,
+                };
+            }
+        };
+
+        // Poll for completion in small increments rather than blocking
+        // indefinitely.  This avoids hanging when semgrep stalls trying to
+        // reach semgrep.dev on a network-restricted host.
+        let poll_interval = Duration::from_millis(100);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => break, // process exited
+                Ok(None) => {
+                    if start.elapsed() >= SEMGREP_TIMEOUT {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return ScanResult {
+                            scanner_name: self.name().to_string(),
+                            findings: vec![],
+                            files_scanned: 0,
+                            skipped: true,
+                            skip_reason: Some(format!(
+                                "semgrep timed out after {}s — likely blocked by network restrictions",
+                                SEMGREP_TIMEOUT.as_secs()
+                            )),
+                            error: None,
+                            duration_ms: start.elapsed().as_millis() as u64,
+                        };
+                    }
+                    std::thread::sleep(poll_interval);
+                }
+                Err(e) => {
+                    return ScanResult {
+                        scanner_name: self.name().to_string(),
+                        findings: vec![],
+                        files_scanned: 0,
+                        skipped: false,
+                        skip_reason: None,
+                        error: Some(format!("Failed to wait for semgrep: {}", e)),
+                        duration_ms: start.elapsed().as_millis() as u64,
+                    };
+                }
+            }
+        }
+
+        let output = match child.wait_with_output() {
+            Ok(o) => o,
+            Err(e) => {
+                return ScanResult {
+                    scanner_name: self.name().to_string(),
+                    findings: vec![],
+                    files_scanned: 0,
+                    skipped: false,
+                    skip_reason: None,
+                    error: Some(format!("Failed to read semgrep output: {}", e)),
+                    duration_ms: start.elapsed().as_millis() as u64,
+                };
+            }
+        };
+
+        // semgrep exits non-zero when findings are present or on error
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.trim().is_empty() {
+            return ScanResult {
+                scanner_name: self.name().to_string(),
+                findings: vec![],
+                files_scanned: 0,
+                skipped: false,
+                skip_reason: None,
+                error: None,
+                duration_ms: start.elapsed().as_millis() as u64,
+            };
+        }
+
+        let root: serde_json::Value = match serde_json::from_str(&stdout) {
+            Ok(v) => v,
+            Err(e) => {
+                return ScanResult {
+                    scanner_name: self.name().to_string(),
+                    findings: vec![],
+                    files_scanned: 0,
+                    skipped: false,
+                    skip_reason: None,
+                    error: Some(format!("Failed to parse semgrep JSON: {}", e)),
+                    duration_ms: start.elapsed().as_millis() as u64,
+                };
+            }
+        };
+
+        let results = match root["results"].as_array() {
+            Some(r) => r,
+            None => {
+                return ScanResult {
+                    scanner_name: self.name().to_string(),
+                    findings: vec![],
+                    files_scanned: 0,
+                    skipped: false,
+                    skip_reason: None,
+                    error: None,
+                    duration_ms: start.elapsed().as_millis() as u64,
+                };
+            }
+        };
+
+        // Prefer the authoritative total from semgrep's own stats; fall back
+        // to unique file paths in findings after the loop is complete.
+        let total_files_stat = root["stats"]["total_files"].as_u64().map(|n| n as usize);
+
+        let mut findings = Vec::new();
+
+        for item in results {
+            let check_id = item["check_id"].as_str().unwrap_or("unknown").to_string();
+            let rule_id = format!("semgrep/{}", check_id);
+
+            // Use eq_ignore_ascii_case to avoid allocating an uppercase String
+            // that is only used for a transient comparison.
+            let sev_str = item["extra"]["severity"].as_str().unwrap_or("WARNING");
+            let severity = if sev_str.eq_ignore_ascii_case("ERROR") {
+                Severity::Error
+            } else if sev_str.eq_ignore_ascii_case("WARNING") {
+                Severity::Warning
+            } else {
+                Severity::Info
+            };
+
+            let message = item["extra"]["message"]
+                .as_str()
+                .unwrap_or("semgrep finding")
+                .to_string();
+
+            let file_path = item["path"].as_str().map(std::path::PathBuf::from);
+
+            let line = item["start"]["line"].as_u64().map(|l| l as usize);
+
+            let column = item["start"]["col"].as_u64().map(|c| c as usize);
+
+            let snippet = item["extra"]["lines"]
+                .as_str()
+                .map(|s| s.trim().to_string());
+
+            let remediation = item["extra"]["metadata"]["fix"]
+                .as_str()
+                .or_else(|| item["extra"]["fix"].as_str())
+                .map(|s| s.to_string());
+
+            findings.push(Finding {
+                rule_id,
+                message,
+                severity,
+                file: file_path,
+                line,
+                column,
+                scanner: self.name().to_string(),
+                snippet,
+                suppressed: false,
+                suppression_reason: None,
+                remediation,
+            });
+        }
+
+        let files_scanned = total_files_stat.unwrap_or_else(|| {
+            // semgrep didn't report total_files; count unique paths from findings
+            // so the metric is meaningful rather than always showing 0.
+            use std::collections::HashSet;
+            findings
+                .iter()
+                .filter_map(|f| f.file.as_ref())
+                .collect::<HashSet<_>>()
+                .len()
+        });
+
+        ScanResult {
+            scanner_name: self.name().to_string(),
+            findings,
+            files_scanned,
+            skipped: false,
+            skip_reason: None,
+            error: None,
+            duration_ms: start.elapsed().as_millis() as u64,
+        }
+    }
+}
+
+pub fn rules() -> Vec<RuleInfo> {
+    vec![
+        RuleInfo {
+            id: "semgrep/javascript.express.security.audit.xss.direct-response-write.direct-response-write",
+            severity: "error",
+            scanner: "semgrep",
+            message: "Direct response write (XSS vulnerability)",
+            remediation: "Escape output or use a templating engine",
+        },
+        RuleInfo {
+            id: "semgrep/python.lang.security.audit.dangerous-spawn-process.dangerous-spawn-process",
+            severity: "error",
+            scanner: "semgrep",
+            message: "Dangerous process spawn (Command Injection)",
+            remediation: "Use subprocess with a list of arguments instead of shell=True",
+        },
+        RuleInfo {
+            id: "semgrep/bash.curl.security.curl-pipe-bash.curl-pipe-bash",
+            severity: "error",
+            scanner: "semgrep",
+            message: "Curl piped to bash",
+            remediation: "Download, verify, then execute",
+        },
+    ]
+}

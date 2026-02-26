@@ -1,0 +1,33 @@
+# oxidized-skills configuration
+# Copy this file to oxidized-skills.toml and customize as needed.
+
+[allowlist]
+# Registries that are approved for package installs
+registries = [
+    "registry.npmjs.org",
+    "pypi.org",
+    "files.pythonhosted.org",
+]
+
+# Domains approved for outbound HTTP calls in scripts
+domains = [
+    "registry.npmjs.org",
+    "npmjs.org",
+    "github.com",
+    "githubusercontent.com",
+    "pypi.org",
+]
+
+[strict]
+# Treat warnings as errors (same as --strict CLI flag)
+enabled = false
+
+[scanners]
+# Enable or disable individual scanners
+shellcheck = true
+semgrep = true
+secrets = true
+prompt = true
+bash_patterns = true
+package_install = true
+frontmatter = true

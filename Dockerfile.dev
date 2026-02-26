@@ -1,0 +1,72 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dockerfile.dev — Local / development image
+#
+# Builds natively on any architecture (amd64, arm64 / Apple Silicon M-series).
+# No cross-compilation, no musl — just cargo build --release against the host
+# arch's native glibc target.
+#
+# Includes all external scanners for full local coverage:
+#   • shellcheck — shell script linting (apt)
+#   • gitleaks   — secret scanning (prebuilt binary)
+#   • semgrep    — static analysis (pip)
+#
+# Usage:
+#   docker build -f Dockerfile.dev -t oxidized-skills:dev .
+#   docker run --rm -v ~/skills:/skills:ro oxidized-skills:dev audit-all /skills
+#   docker run --rm -v /path/to/skill:/skill:ro   oxidized-skills:dev audit /skill
+#
+# NOTE: semgrep fetches rules from semgrep.dev on first run.  In
+# network-restricted environments it will time out after 30 s and be skipped
+# gracefully.
+#
+# Final image size: ~350–400 MB
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Stage 1: Builder ──────────────────────────────────────────────────────────
+FROM rust:1.93.1-slim-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Dependency caching layer — only invalidated when Cargo.toml / Cargo.lock change.
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && \
+    echo 'fn main() {}' > src/main.rs && \
+    cargo build --release && \
+    rm -rf src \
+           target/release/oxidized-skills \
+           target/release/deps/oxidized_skills*
+
+COPY src ./src
+RUN cargo build --release && \
+    strip target/release/oxidized-skills
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM python:3.12-slim
+
+ARG GITLEAKS_VERSION=8.30.0
+ARG TARGETARCH=x64
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    shellcheck \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL \
+    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin gitleaks \
+    && chmod +x /usr/local/bin/gitleaks
+
+RUN pip install --no-cache-dir semgrep
+
+COPY --from=builder /build/target/release/oxidized-skills /usr/local/bin/oxidized-skills
+
+RUN groupadd -r oxidized && useradd -r -g oxidized -s /sbin/nologin oxidized
+USER oxidized
+
+ENTRYPOINT ["oxidized-skills"]

@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 1: Builder
+#
+# Compiles a dynamically-linked release binary against glibc so it runs on the
+# python:3.12-slim Debian base used in the runtime stage.
+# ─────────────────────────────────────────────────────────────────────────────
+FROM rust:1.93.1-slim-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# ── dependency caching layer ──────────────────────────────────────────────────
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir -p src && \
+    echo 'fn main() {}' > src/main.rs && \
+    cargo build --release && \
+    rm -rf src \
+           target/release/oxidized-skills \
+           target/release/deps/oxidized_skills*
+
+# ── real build ────────────────────────────────────────────────────────────────
+COPY src ./src
+RUN cargo build --release
+
+RUN strip target/release/oxidized-skills
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 2: Runtime (python:3.12-slim + semgrep + shellcheck + gitleaks)
+#
+# python:3.12-slim is the smallest official image that can run semgrep, which
+# requires a CPython interpreter.
+#
+# Includes all three external tool wrappers:
+#   • semgrep    — static analysis (Python/OCaml, installed via pip)
+#   • shellcheck — shell script linting (apt)
+#   • gitleaks   — secret scanning (prebuilt binary)
+#
+# NOTE: semgrep fetches rules from semgrep.dev on first run.  In
+# network-restricted environments it will time out after 30 s and be skipped
+# gracefully.  To pre-cache rules, mount a local semgrep config with
+#   -v ./semgrep.yml:/semgrep.yml -e SEMGREP_RULES=/semgrep.yml
+#
+# Final image size: ~350–400 MB
+# ─────────────────────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+ARG GITLEAKS_VERSION=8.30.0
+ARG TARGETARCH=x64
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    shellcheck \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install gitleaks from the official GitHub release (statically linked binary).
+RUN curl -fsSL \
+    "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin gitleaks \
+    && chmod +x /usr/local/bin/gitleaks
+
+# Install semgrep via pip — pinned to a recent stable version for reproducibility.
+# `--no-cache-dir` avoids keeping the pip wheel cache in the image layer.
+RUN pip install --no-cache-dir semgrep
+
+COPY --from=builder /build/target/release/oxidized-skills /usr/local/bin/oxidized-skills
+
+# Run as a non-root user.
+RUN groupadd -r oxidized && useradd -r -g oxidized -s /sbin/nologin oxidized
+USER oxidized
+
+ENTRYPOINT ["oxidized-skills"]

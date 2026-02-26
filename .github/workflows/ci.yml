@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - run: cargo clippy -- -D warnings
+      - run: cargo fmt --check
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - name: Run against test fixtures
+        run: |
+          ./target/release/oxidized-skills audit tests/fixtures/clean-skill
+          ./target/release/oxidized-skills audit tests/fixtures/dirty-skill --format json || true
+          ./target/release/oxidized-skills audit tests/fixtures/suppressed-skill --format json
+          ./target/release/oxidized-skills audit tests/fixtures/secrets-skill --format json || true
+          ./target/release/oxidized-skills audit tests/fixtures/shellcheck-skill --format json || true
+          ./target/release/oxidized-skills list-rules
+          ./target/release/oxidized-skills check-tools
+          ./target/release/oxidized-skills explain bash/CAT-H1

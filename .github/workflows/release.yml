@@ -1,0 +1,187 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  security-events: write
+
+jobs:
+  build-binaries:
+    name: Build - ${{ matrix.platform.os-name }}
+    strategy:
+      matrix:
+        platform:
+          - os-name: Linux-x86_64
+            runs-at: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os-name: macOS-Universal
+            runs-at: macos-latest
+            target: x86_64-apple-darwin
+          - os-name: Windows-x86_64
+            runs-at: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform.runs-at }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Prepare assets
+        shell: bash
+        run: |
+          BIN_NAME="oxidized-skills"
+          TARGET_DIR="target/${{ matrix.platform.target }}/release"
+          ASSET_NAME="${BIN_NAME}-${{ matrix.platform.os-name }}"
+          DIST_DIR="$GITHUB_WORKSPACE/dist"
+
+          mkdir -p "$DIST_DIR"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            cd "$TARGET_DIR"
+            powershell -Command "Compress-Archive -Path '${BIN_NAME}.exe' -DestinationPath '${DIST_DIR}/${ASSET_NAME}.zip'"
+          else
+            cd "$TARGET_DIR"
+            tar czf "${DIST_DIR}/${ASSET_NAME}.tar.gz" "${BIN_NAME}"
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: binaries-${{ matrix.platform.os-name }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish Release
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Docker images ────────────────────────────────────────────────────────────
+  # Builds and pushes three image variants to GitHub Container Registry (GHCR):
+  #
+  #   :slim / :latest  — static musl binary on scratch (~8 MB, core scanners)
+  #   :full            — dynamic binary on python:3.12-slim
+  #                      + shellcheck + gitleaks + semgrep (~350 MB)
+  #
+  # Tags applied on a version tag push (e.g. v1.2.3):
+  #   ghcr.io/<owner>/oxidized-skills:1.2.3
+  #   ghcr.io/<owner>/oxidized-skills:1.2
+  #   ghcr.io/<owner>/oxidized-skills:slim
+  #   ghcr.io/<owner>/oxidized-skills:latest
+  #   ghcr.io/<owner>/oxidized-skills:1.2.3-full
+  #   ghcr.io/<owner>/oxidized-skills:full
+
+  docker:
+    name: Publish Docker images
+    needs: publish-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── slim image (scratch base, ~8 MB) ─────────────────────────────────────
+      - name: Extract metadata for slim image
+        id: meta-slim
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=slim
+            type=raw,value=latest
+
+      - name: Build and push slim image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta-slim.outputs.tags }}
+          labels: ${{ steps.meta-slim.outputs.labels }}
+          cache-from: type=gha,scope=slim
+          cache-to: type=gha,mode=max,scope=slim
+
+      # ── full image (debian-slim + shellcheck + gitleaks + semgrep, ~245 MB) ─────────────
+      - name: Extract metadata for full image
+        id: meta-full
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}-full
+            type=raw,value=full
+
+      - name: Build and push full image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.full
+          push: true
+          tags: ${{ steps.meta-full.outputs.tags }}
+          labels: ${{ steps.meta-full.outputs.labels }}
+          cache-from: type=gha,scope=full
+          cache-to: type=gha,mode=max,scope=full
+
+      - name: Make package public
+        run: |
+          PACKAGE_NAME="${GITHUB_REPOSITORY##*/}"
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /user/packages/container/${PACKAGE_NAME} \
+            -f visibility=public || \
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /orgs/${OWNER}/packages/container/${PACKAGE_NAME} \
+            -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGES_PAT }}
