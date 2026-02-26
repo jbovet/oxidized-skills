@@ -1,15 +1,14 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+      types: [published]
+
   workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
-  security-events: write
 
 jobs:
   build-binaries:
@@ -17,13 +16,16 @@ jobs:
     strategy:
       matrix:
         platform:
-          - os-name: Linux-x86_64
+          - os-name: linux-x86_64
             runs-at: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os-name: macOS-Universal
-            runs-at: macos-latest
+          - os-name: macos-x86_64
+            runs-at: macos-13
             target: x86_64-apple-darwin
-          - os-name: Windows-x86_64
+          - os-name: macos-aarch64
+            runs-at: macos-latest
+            target: aarch64-apple-darwin
+          - os-name: windows-x86_64
             runs-at: windows-latest
             target: x86_64-pc-windows-msvc
 
@@ -62,7 +64,7 @@ jobs:
           fi
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ matrix.platform.os-name }}
           path: dist/*
