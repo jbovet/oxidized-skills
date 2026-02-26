@@ -1,6 +1,6 @@
 ---
 name: auditing-skills
-description: Scans AI agent skill directories for dangerous bash patterns, prompt injection, supply chain risks, and SKILL.md structure violations. Use when reviewing or validating a skill before deployment.
+description: Scans AI agent skill directories for dangerous bash patterns, prompt injection, supply chain risks, and SKILL.md structure violations. Use when reviewing, validating, or security-auditing a skill before deployment — or when asked to check a skill for security issues, prompt injection, hardcoded secrets, or compliance with Anthropic's authoring guidelines.
 allowed-tools:
   - Bash(oxidized-skills)
   - Read
@@ -75,6 +75,81 @@ Severity levels:
 | Warning | Should fix, becomes error in strict mode |
 | Info | Informational, no action required |
 
+## Pre-deployment audit workflow
+
+Copy this checklist and check off each step:
+
+```
+Audit progress:
+- [ ] Step 1: Check external tools are available
+- [ ] Step 2: Run full audit in strict mode
+- [ ] Step 3: Interpret results — exit code 0 required to pass
+- [ ] Step 4: Fix each finding (use `explain` for remediation guidance)
+- [ ] Step 5: Re-audit to confirm clean
+```
+
+**Step 1: Check tools**
+```bash
+oxidized-skills check-tools
+```
+
+**Step 2: Full strict audit**
+```bash
+oxidized-skills audit ./skill --strict
+```
+
+**Step 3: Interpret** — Exit code 0 = ready to deploy. Any other exit code: proceed to Step 4.
+
+**Step 4: Fix findings**
+
+For each finding, get remediation guidance:
+```bash
+oxidized-skills explain <rule-id>   # e.g. oxidized-skills explain bash/CAT-A1
+```
+
+**Step 5: Re-audit**
+
+Repeat Step 2 until exit code is 0.
+
+## Remediation loop
+
+When findings are reported:
+
+1. For each **Error**: run `oxidized-skills explain <rule-id>` to get remediation guidance, then fix the issue
+2. For each **Warning**: evaluate — fix before deployment, or suppress with a ticket if intentional
+3. Re-run the audit after each batch of fixes
+4. Only proceed when exit code is 0
+
+**Suppressing intentional findings** (requires justification):
+```bash
+# Trailing inline comment on any shell line:
+some-command  # audit:ignore
+
+# Or use .oxidized-skills-ignore for file/line-scoped suppression with ticket tracking
+```
+
+## Sample output
+
+**Passing audit:**
+```
+✓ bash_patterns   0 findings
+✓ prompt          0 findings
+✓ frontmatter     0 findings
+✓ package_install 0 findings
+Audit passed. Exit code: 0
+```
+
+**Failing audit (errors found):**
+```
+✗ prompt          1 finding
+  [ERROR] prompt/override-ignore — instruction override detected — SKILL.md:3
+✗ bash_patterns   1 finding
+  [ERROR] bash/CAT-A1 — Pipe to shell (RCE) — scripts/install.sh:12
+Audit failed. Exit code: 1
+```
+
+Fix each Error, then re-run. Warnings do not block unless `--strict` is active.
+
 ## Scanner coverage
 
 Core scanners (no external tools required):
@@ -89,3 +164,8 @@ External tool wrappers (auto-skipped when not installed):
 - **shellcheck** — shell script linting
 - **secrets** — hardcoded secrets via gitleaks
 - **semgrep** — static analysis rules
+
+## Going deeper
+
+**Full rule reference with remediation guidance**: See [RULES.md](RULES.md)
+**Per-category triage guide**: See [TRIAGE.md](TRIAGE.md)
