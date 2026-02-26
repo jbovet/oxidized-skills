@@ -1,7 +1,7 @@
 use crate::finding::{AuditReport, Finding, Severity};
 use serde_sarif::sarif::{
     ArtifactLocation, Location, Message, MultiformatMessageString, PhysicalLocation, Region,
-    ReportingDescriptor, Result as SarifResult, Run, Sarif, Tool, ToolComponent,
+    ReportingDescriptor, Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 use std::collections::HashMap;
 
@@ -52,9 +52,9 @@ pub fn format(report: &AuditReport) -> String {
         .iter()
         .map(|f| {
             let level = match f.severity {
-                Severity::Error => "error",
-                Severity::Warning => "warning",
-                Severity::Info => "note",
+                Severity::Error => ResultLevel::Error,
+                Severity::Warning => ResultLevel::Warning,
+                Severity::Info => ResultLevel::Note,
             };
 
             let mut result = SarifResult::builder()
@@ -62,7 +62,7 @@ pub fn format(report: &AuditReport) -> String {
                 .build();
 
             result.rule_id = Some(f.rule_id.clone());
-            result.level = Some(serde_json::Value::String(level.to_string()));
+            result.level = Some(level);
             result.rule_index = rule_index.get(f.rule_id.as_str()).copied();
 
             if let Some(ref file) = f.file {
