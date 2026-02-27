@@ -31,3 +31,14 @@ prompt = true
 bash_patterns = true
 package_install = true
 frontmatter = true
+
+[semgrep]
+# Path to local rules (e.g., "semgrep.yml"). If omitted, looks for 
+# semgrep.yml or .semgrep.yml in the current directory.
+# config = "semgrep.yml"
+
+# Whether to send metrics to semgrep.dev (default: false)
+metrics = false
+
+# Whether to check for updates (default: false)
+version_check = false

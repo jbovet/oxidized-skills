@@ -95,12 +95,25 @@ oxidized-skills explain bash/CAT-A1
 
 ### Core scanners (no external tools required)
 
-| Scanner | What it checks |
-|---------|---------------|
-| `bash_patterns` | 19 regex rules for dangerous shell patterns |
-| `prompt` | 19 patterns for prompt injection in SKILL.md |
-| `package_install` | Package manager calls without pinned registry |
-| `frontmatter` | 15 rules for SKILL.md structure and allowed-tools safety |
+- `bash_patterns`: Dangerous shell commands (RCE, reverse shells).
+- `prompt`: Prompt injection patterns in `SKILL.md`.
+- `package_install`: Unsafe package manager usage (pinned versions, registries).
+- `frontmatter`: `SKILL.md` metadata quality and safety.
+
+### Semgrep Optimization
+Semgrep can be slow because it fetches rules from the registry by default. `oxidized-skills` optimizes this by:
+- Disabling anonymous metrics and version checks.
+- Looking for a local `semgrep.yml` or `.semgrep.yml` automatically.
+
+To use local rules and avoid network calls:
+1. Create a `semgrep.yml` with your rules.
+2. (Optional) Point to it in `oxidized-skills.toml`:
+```toml
+[semgrep]
+config = "my-rules.yml"
+```
+
+## Output Formats
 
 ### External tool wrappers (auto-skipped when tool not on PATH)
 
