@@ -188,20 +188,3 @@ jobs:
           labels: ${{ steps.meta-full.outputs.labels }}
           cache-from: type=gha,scope=full
           cache-to: type=gha,mode=max,scope=full
-
-      - name: Make package public
-        run: |
-          PACKAGE_NAME="${GITHUB_REPOSITORY##*/}"
-          OWNER="${GITHUB_REPOSITORY_OWNER}"
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            /user/packages/container/${PACKAGE_NAME} \
-            -f visibility=public || \
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            /orgs/${OWNER}/packages/container/${PACKAGE_NAME} \
-            -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGES_PAT }}
