@@ -1,0 +1,61 @@
+name: Feature Request
+description: Suggest a new rule, scanner, or other improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the suggestion! Please describe what you'd like to see added or changed.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What problem or gap does this feature address?
+      placeholder: "When auditing skills that use X, oxidized-skills does not detect Y..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches you've thought about.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the codebase does this relate to?
+      options:
+        - New scanner rule (bash patterns)
+        - New scanner rule (prompt injection)
+        - New scanner rule (frontmatter)
+        - New scanner rule (package install)
+        - New external scanner integration
+        - CLI / UX
+        - Output formats
+        - Configuration
+        - Documentation
+        - CI / release pipeline
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any examples, references, or related issues.
+    validations:
+      required: false

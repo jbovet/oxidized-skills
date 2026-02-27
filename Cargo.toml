@@ -7,6 +7,8 @@ description = "Security auditing for AI agent skills"
 license = "MIT"
 repository = "https://github.com/jbovet/oxidized-skills"
 readme = "README.md"
+keywords = ["security", "audit", "cli", "llm", "skills"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "oxidized-skills"

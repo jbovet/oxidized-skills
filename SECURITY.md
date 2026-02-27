@@ -10,7 +10,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Please report security [issues](https://github.com/jbovet/oxidized-skills/issues) on github:
+Please use [GitHub's private Security Advisory form](https://github.com/jbovet/oxidized-skills/security/advisories/new) to report vulnerabilities confidentially. This ensures the report is only visible to the maintainer until a fix is ready.
 
 Include in your report:
 

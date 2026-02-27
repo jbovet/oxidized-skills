@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pre-commit hook: run fmt-check and clippy before every commit.
+# Install with: just install-hooks
+
+set -e
+
+echo "Running cargo fmt --check..."
+cargo fmt --check
+
+echo "Running cargo clippy..."
+cargo clippy -- -D warnings
+
+echo "Pre-commit checks passed."

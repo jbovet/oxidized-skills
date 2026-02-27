@@ -72,6 +72,15 @@ pip install semgrep
 
 Run `just check-tools` to see which are available.
 
+## Repository Secrets (maintainers)
+
+The release workflow requires one repository secret beyond the automatically
+provided `GITHUB_TOKEN`:
+
+| Secret | Required for | How to create |
+|--------|-------------|---------------|
+| `PACKAGES_PAT` | Making newly-pushed GHCR images public via the GitHub API | Create a classic Personal Access Token with `write:packages` scope at **Settings → Developer settings → Personal access tokens**, then add it to the repo at **Settings → Secrets and variables → Actions**. |
+
 ## Submitting a Pull Request
 
 1. Fork the repository and create a branch from `main`:
