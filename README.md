@@ -1,6 +1,23 @@
-# oxidized-skills
+<div align="center">
+  <img src="assets/logo.svg" alt="oxidized-skills logo" width="160"/>
+  <h1>oxidized-skills</h1>
+  <p><strong>Security auditing for AI agent skills.</strong><br/>
+  A Rust CLI tool that scans skill directories for dangerous patterns, prompt injection, supply chain risks, and more.</p>
 
-Security auditing for AI agent skills. A Rust CLI tool that scans skill directories for dangerous patterns, prompt injection, supply chain risks, and more.
+  <!-- Version & registry -->
+  <a href="https://crates.io/crates/oxidized-skills"><img src="https://img.shields.io/crates/v/oxidized-skills.svg?style=flat-square&logo=rust&color=CE422B" alt="Crates.io version"/></a>
+  <a href="https://crates.io/crates/oxidized-skills"><img src="https://img.shields.io/crates/d/oxidized-skills.svg?style=flat-square&color=8B5CF6" alt="Crates.io downloads"/></a>
+  <!-- CI & quality -->
+  <a href="https://github.com/jbovet/oxidized-skills/actions"><img src="https://img.shields.io/github/actions/workflow/status/jbovet/oxidized-skills/ci.yml?branch=main&style=flat-square&logo=githubactions&label=CI" alt="CI status"/></a>
+  <!-- MSRV & language -->
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust" alt="Minimum supported Rust version"/></a>
+  <!-- License -->
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="MIT license"/></a>
+  <!-- Docker -->
+  <a href="https://github.com/jbovet/oxidized-skills/pkgs/container/oxidized-skills"><img src="https://img.shields.io/badge/ghcr.io-oxidized--skills-0284C7?style=flat-square&logo=docker&logoColor=white" alt="GitHub Container Registry"/></a>
+</div>
+
+---
 
 ## Features
 

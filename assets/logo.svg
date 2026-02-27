@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 270" width="240" height="270" role="img" aria-label="oxidized-skills logo">
+  <defs>
+    <!-- Rust-orange radial glow for shield body -->
+    <radialGradient id="shieldFill" cx="50%" cy="40%" r="60%">
+      <stop offset="0%"   stop-color="#2a1a0e"/>
+      <stop offset="100%" stop-color="#0e0e18"/>
+    </radialGradient>
+
+    <!-- Rust-orange linear gradient for shield border + atoms -->
+    <linearGradient id="rustGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#FF6B35"/>
+      <stop offset="100%" stop-color="#9B2C0A"/>
+    </linearGradient>
+
+    <!-- Glow filter for nucleus -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip to shield shape so orbits don't overflow -->
+    <clipPath id="shieldClip">
+      <path d="M120 18 L208 50 L208 132 Q208 200 120 232 Q32 200 32 132 L32 50 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Shield body ─────────────────────────────────────────────────── -->
+  <path d="M120 18 L208 50 L208 132 Q208 200 120 232 Q32 200 32 132 L32 50 Z"
+        fill="url(#shieldFill)"/>
+
+  <!-- Shield outer border – two strokes for a depth effect -->
+  <path d="M120 18 L208 50 L208 132 Q208 200 120 232 Q32 200 32 132 L32 50 Z"
+        fill="none" stroke="#CE422B" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M120 22 L204 52 L204 132 Q204 196 120 228 Q36 196 36 132 L36 52 Z"
+        fill="none" stroke="#FF6B35" stroke-width="1" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- ── Atom symbol (oxidation metaphor) ──────────────────────────── -->
+  <!-- Orbit 1 – horizontal -->
+  <ellipse cx="120" cy="125" rx="58" ry="22"
+           fill="none" stroke="#CE422B" stroke-width="2.2"
+           clip-path="url(#shieldClip)"/>
+
+  <!-- Orbit 2 – rotated 60° -->
+  <ellipse cx="120" cy="125" rx="58" ry="22"
+           fill="none" stroke="#E8500A" stroke-width="2.2" opacity="0.80"
+           transform="rotate(60 120 125)"
+           clip-path="url(#shieldClip)"/>
+
+  <!-- Orbit 3 – rotated 120° -->
+  <ellipse cx="120" cy="125" rx="58" ry="22"
+           fill="none" stroke="#FF6B35" stroke-width="2.2" opacity="0.60"
+           transform="rotate(120 120 125)"
+           clip-path="url(#shieldClip)"/>
+
+  <!-- ── Nucleus ────────────────────────────────────────────────────── -->
+  <circle cx="120" cy="125" r="11" fill="#CE422B" filter="url(#glow)"/>
+  <circle cx="120" cy="125" r="7"  fill="#FF8C42"/>
+
+  <!-- ── Subtle scan-line overlay (security scanning) ──────────────── -->
+  <g clip-path="url(#shieldClip)" opacity="0.12" stroke="#FF6B35" stroke-width="1">
+    <line x1="32"  y1="80"  x2="208" y2="80"/>
+    <line x1="32"  y1="95"  x2="208" y2="95"/>
+    <line x1="32"  y1="110" x2="208" y2="110"/>
+    <line x1="32"  y1="155" x2="208" y2="155"/>
+    <line x1="32"  y1="170" x2="208" y2="170"/>
+  </g>
+
+  <!-- ── Corner rust-fleck accents on shield ───────────────────────── -->
+  <circle cx="56"  cy="64"  r="2.5" fill="#CE422B" opacity="0.6"/>
+  <circle cx="184" cy="64"  r="2.5" fill="#CE422B" opacity="0.6"/>
+  <circle cx="48"  cy="150" r="2"   fill="#FF6B35" opacity="0.4"/>
+  <circle cx="192" cy="150" r="2"   fill="#FF6B35" opacity="0.4"/>
+
+  <!-- ── Wordmark ───────────────────────────────────────────────────── -->
+  <text x="120" y="255"
+        font-family="'Courier New', Courier, monospace"
+        font-size="14.5"
+        font-weight="700"
+        fill="#FF6B35"
+        text-anchor="middle"
+        letter-spacing="1.2">oxidized-skills</text>
+</svg>

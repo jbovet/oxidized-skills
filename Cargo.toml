@@ -3,12 +3,26 @@ name = "oxidized-skills"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
-description = "Security auditing for AI agent skills"
+authors = ["jbovet"]
+description = "Security auditing for AI agent skills — scans skill directories for dangerous bash patterns, prompt injection, supply chain risks, secret leakage, and frontmatter quality issues"
 license = "MIT"
 repository = "https://github.com/jbovet/oxidized-skills"
+documentation = "https://docs.rs/oxidized-skills"
 readme = "README.md"
 keywords = ["security", "audit", "cli", "llm", "skills"]
 categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "Dockerfile*",
+    ".dockerignore",
+    "justfile",
+    "assets/",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "SKILL.md",
+    "SECURITY.md",
+    ".github/",
+    ".githooks/"
+]
 
 [[bin]]
 name = "oxidized-skills"
