@@ -91,7 +91,7 @@ jobs:
         with:
           files: dist/*
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_PAT }}
 
   publish-cargo:
     name: Publish to crates.io
@@ -140,7 +140,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.PACKAGES_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
