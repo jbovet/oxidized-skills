@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-02-26
+## [0.1.1] - 2026-02-27
+
+### Added
+- **Feature**: Enhanced audit output with indication of disabled/missing scanners.
+- **Infrastructure**: Added `dependabot.yml` and updated CI for multi-OS testing.
+- **Docs**: Added support guidelines and expanded auditing skills documentation.
+
+### Changed
+- **Optimization**: Significant performance improvements for Semgrep scanner using local rules and configuration.
+
+### Fixed
+- **Fix**: Resolved `Default` trait lints and Semgrep configuration loading errors.
 
 ### Added
 
@@ -29,5 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker images** — slim (~8 MB, scratch base) and full (~245 MB, includes shellcheck + gitleaks + semgrep) variants published to GHCR
 - **CI/CD** — GitHub Actions workflows for CI (test + lint + fmt) and release (binaries + Docker images)
 
-[Unreleased]: https://github.com/jbovet/oxidized-skills/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jbovet/oxidized-skills/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jbovet/oxidized-skills/releases/tag/v0.1.1
 [0.1.0]: https://github.com/jbovet/oxidized-skills/releases/tag/v0.1.0
