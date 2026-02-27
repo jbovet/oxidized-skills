@@ -107,7 +107,7 @@ pub struct ScannersConfig {
 }
 
 /// Configuration for the [semgrep](https://semgrep.dev/) scanner.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct SemgrepConfig {
     /// Path to a local semgrep rules file (e.g., `semgrep.yml`).
@@ -127,16 +127,6 @@ pub struct SemgrepConfig {
     ///
     /// Defaults to `false` for speed.
     pub version_check: bool,
-}
-
-impl Default for SemgrepConfig {
-    fn default() -> Self {
-        SemgrepConfig {
-            config: None,
-            metrics: false,
-            version_check: false,
-        }
-    }
 }
 
 impl AllowlistConfig {
