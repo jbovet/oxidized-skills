@@ -315,8 +315,8 @@ Three image variants are published to GitHub Container Registry on every release
 
 | Image | Base | External tools | Size | Tag |
 |-------|------|----------------|------|-----|
-| slim | `scratch` | None (core scanners only) | ~8 MB | `:slim`, `:latest`, `:<version>` |
-| full | `python:3.12-slim` | `shellcheck` + `gitleaks` + `semgrep` | ~245 MB | `:full`, `:<version>-full` |
+| slim | `scratch` | None (core scanners only) | ~4 MB | `:slim`, `:latest`, `:<version>` |
+| full | `python:3.12-slim` | `shellcheck` + `gitleaks` + `semgrep` | ~506 MB | `:full`, `:<version>-full` |
 
 > The `full` image includes `semgrep`, which fetches rules from `semgrep.dev` on first run. In network-restricted environments it will time out after 30 s and be skipped gracefully. To pre-cache rules, mount a local semgrep config with `-v ./semgrep.yml:/semgrep.yml -e SEMGREP_RULES=/semgrep.yml`.
 
@@ -330,6 +330,13 @@ Always mount the skill (or skills collection) as a volume and pass the **contain
 ```
 
 ### Pull and run
+
+On Apple Silicon or other ARM64 systems, you should specify the platform to run the published amd64 images:
+
+```bash
+docker pull --platform linux/amd64 ghcr.io/jbovet/oxidized-skills:slim
+```
+
 
 ```bash
 # ── slim image (core scanners only) ──────────────────────────────────────────
@@ -375,8 +382,8 @@ docker run --rm \
 ### Build locally
 
 ```bash
-just docker-build       # slim (~10 MB, scratch base)
-just docker-build-full  # full (~245MB MB, debian-slim + shellcheck + gitleaks)
+just docker-build       # slim (~4 MB, scratch base)
+just docker-build-full  # full (~506 MB, debian-slim + shellcheck + gitleaks)
 just docker-build-all   # all three
 
 # Run against a local skill directory
