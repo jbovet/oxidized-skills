@@ -9,6 +9,7 @@
 use crate::config::{self, Config};
 use crate::finding::{AuditReport, ScanResult};
 use crate::scanners;
+use colored::Colorize;
 use rayon::prelude::*;
 use std::path::Path;
 
@@ -38,15 +39,45 @@ use std::path::Path;
 pub fn run_audit(path: &Path, config: &Config) -> AuditReport {
     let all = scanners::all_scanners();
 
-    let active: Vec<_> = all
-        .into_iter()
+    let n_active = all
+        .iter()
         .filter(|s| config.is_scanner_enabled(s.name()))
-        .collect();
+        .count();
+    let n_disabled = all.len() - n_active;
 
-    let results: Vec<ScanResult> = active
+    // Progress header to stderr so it never pollutes --format json/sarif output.
+    if n_disabled > 0 {
+        eprintln!(
+            "{}",
+            format!(
+                "Running {} scanner{}… ({} disabled)",
+                n_active,
+                if n_active == 1 { "" } else { "s" },
+                n_disabled
+            )
+            .dimmed()
+        );
+    } else {
+        eprintln!(
+            "{}",
+            format!(
+                "Running {} scanner{}…",
+                n_active,
+                if n_active == 1 { "" } else { "s" }
+            )
+            .dimmed()
+        );
+    }
+
+    // Run all scanners in parallel (rayon preserves collection order).
+    // Disabled scanners return immediately as skipped results so they still
+    // appear in the report with a distinct "disabled in config" reason.
+    let results: Vec<ScanResult> = all
         .par_iter()
         .map(|scanner| {
-            if scanner.is_available() {
+            if !config.is_scanner_enabled(scanner.name()) {
+                ScanResult::skipped(scanner.name(), "disabled in config")
+            } else if scanner.is_available() {
                 scanner.scan(path, config)
             } else {
                 ScanResult::skipped(

@@ -31,7 +31,14 @@ pub fn format(report: &AuditReport) -> String {
     // Scanner results summary
     out.push_str(&format!("{}\n", "Scanners".bold().underline()));
     for result in &report.scanner_results {
-        let icon = if result.skipped {
+        let disabled = result
+            .skip_reason
+            .as_deref()
+            .map(|r| r == "disabled in config")
+            .unwrap_or(false);
+        let icon = if disabled {
+            " OFF".dimmed().to_string()
+        } else if result.skipped {
             "SKIP".dimmed().to_string()
         } else {
             // Single pass: determine both flags simultaneously instead of two
@@ -54,7 +61,9 @@ pub fn format(report: &AuditReport) -> String {
             }
         };
 
-        let detail = if result.skipped {
+        let detail = if disabled {
+            "disabled in config".dimmed().to_string()
+        } else if result.skipped {
             result
                 .skip_reason
                 .as_deref()
