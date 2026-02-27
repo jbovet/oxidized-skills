@@ -46,6 +46,8 @@ pub struct Config {
     pub strict: StrictConfig,
     /// Per-scanner on/off toggles.
     pub scanners: ScannersConfig,
+    /// Configuration for the semgrep scanner.
+    pub semgrep: SemgrepConfig,
 }
 
 /// Trusted package registries and domains.
@@ -102,6 +104,29 @@ pub struct ScannersConfig {
     pub package_install: bool,
     /// SKILL.md frontmatter validation (built-in).
     pub frontmatter: bool,
+}
+
+/// Configuration for the [semgrep](https://semgrep.dev/) scanner.
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct SemgrepConfig {
+    /// Path to a local semgrep rules file (e.g., `semgrep.yml`).
+    ///
+    /// If specified, semgrep will be run with `--config <path>`. If not
+    /// specified, the scanner looks for a `semgrep.yml` file in the project
+    /// root. Using a local config file prevents semgrep from redownloading
+    /// rules from the registry on every run.
+    pub config: Option<String>,
+
+    /// Whether to send anonymous performance metrics to semgrep.dev.
+    ///
+    /// Defaults to `false` for privacy and speed.
+    pub metrics: bool,
+
+    /// Whether to check for the latest semgrep version.
+    ///
+    /// Defaults to `false` for speed.
+    pub version_check: bool,
 }
 
 impl AllowlistConfig {

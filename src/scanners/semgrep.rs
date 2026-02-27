@@ -38,7 +38,7 @@ use std::time::{Duration, Instant};
 /// rule updates and the network is blocked (e.g. corporate proxy).  A 30-second
 /// ceiling keeps CI pipelines from hanging indefinitely while still allowing
 /// legitimate slow runs to complete.
-const SEMGREP_TIMEOUT: Duration = Duration::from_secs(3);
+const SEMGREP_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// External scanner wrapper for [semgrep](https://semgrep.dev/).
 ///
@@ -48,7 +48,7 @@ const SEMGREP_TIMEOUT: Duration = Duration::from_secs(3);
 /// [`Warning`](Severity::Warning), anything else → [`Info`](Severity::Info)).
 ///
 /// The subprocess is killed and the scan is marked *skipped* if it does
-/// not complete within `SEMGREP_TIMEOUT` (3 seconds).
+/// not complete within `SEMGREP_TIMEOUT` (30 seconds).
 ///
 /// Requires `semgrep` on `PATH`; see [`is_available`](Scanner::is_available).
 pub struct SemgrepScanner;
@@ -66,13 +66,36 @@ impl Scanner for SemgrepScanner {
         which_exists("semgrep")
     }
 
-    fn scan(&self, path: &Path, _config: &Config) -> ScanResult {
+    fn scan(&self, path: &Path, config: &Config) -> ScanResult {
         let start = Instant::now();
 
-        let mut child = match std::process::Command::new("semgrep")
-            .arg("scan")
-            .arg("--json")
-            .arg("--quiet")
+        let mut cmd = std::process::Command::new("semgrep");
+        cmd.arg("scan").arg("--json").arg("--quiet");
+
+        // 1. Rule configuration resolution:
+        //    - Use explicit path from oxidized-skills.toml if provided.
+        //    - Fall back to local semgrep.yml or .semgrep.yml if they exist.
+        //    - Otherwise semgrep will use its default (usually 'auto' registry rules).
+        if let Some(ref custom_config) = config.semgrep.config {
+            cmd.arg("--config").arg(custom_config);
+        } else if Path::new("semgrep.yml").exists() {
+            cmd.arg("--config").arg("semgrep.yml");
+        } else if Path::new(".semgrep.yml").exists() {
+            cmd.arg("--config").arg(".semgrep.yml");
+        }
+
+        // 2. Performance optimizations:
+        //    - Disable metrics unless explicitly enabled.
+        //    - Disable version check unless explicitly enabled.
+        if !config.semgrep.metrics {
+            cmd.arg("--metrics=off");
+        }
+
+        if !config.semgrep.version_check {
+            cmd.env("SEMGREP_ENABLE_VERSION_CHECK", "0");
+        }
+
+        let mut child = match cmd
             .arg(path)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
