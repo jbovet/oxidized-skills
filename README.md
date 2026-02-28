@@ -2,7 +2,7 @@
   <img src="assets/logo.svg" alt="oxidized-skills logo" width="160"/>
   <h1>oxidized-skills</h1>
   <p><strong>Security auditing for AI agent skills.</strong><br/>
-  A Rust CLI tool that scans skill directories for dangerous patterns, prompt injection, supply chain risks, and more.</p>
+  A CLI tool that scans skill directories for dangerous patterns, prompt injection, supply chain risks.</p>
 
   <!-- Version & registry -->
   <a href="https://crates.io/crates/oxidized-skills"><img src="https://img.shields.io/crates/v/oxidized-skills.svg?style=flat-square&logo=rust&color=CE422B" alt="Crates.io version"/></a>
