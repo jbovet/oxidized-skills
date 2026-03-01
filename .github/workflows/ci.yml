@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
@@ -45,6 +48,7 @@ jobs:
   action-test:
     needs: [test, build]
     permissions:
+      contents: read
       security-events: write
     strategy:
       matrix:
