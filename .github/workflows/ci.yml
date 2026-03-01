@@ -41,3 +41,36 @@ jobs:
           ./target/release/oxidized-skills list-rules
           ./target/release/oxidized-skills check-tools
           ./target/release/oxidized-skills explain bash/CAT-H1
+
+  action-test:
+    needs: [test, build]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Audit repo SKILL.md via local action
+        id: audit
+        uses: ./
+        with:
+          skills-path: '.'
+          sarif-output: 'oxidized-skills-ci.sarif'
+
+      - name: Show audit outputs
+        if: always()
+        shell: bash
+        run: |
+          echo "SARIF file:     ${{ steps.audit.outputs.sarif-file }}"
+          echo "Errors count:   ${{ steps.audit.outputs.errors-count }}"
+          echo "Warnings count: ${{ steps.audit.outputs.warnings-count }}"
+
+      - name: Upload SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarif-report-${{ matrix.os }}
+          path: oxidized-skills-ci.sarif
+          if-no-files-found: warn

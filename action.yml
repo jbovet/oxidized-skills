@@ -1,0 +1,414 @@
+name: oxidized-skills
+description: Security auditing for AI agent skills — scans SKILL.md files for prompt injection, dangerous bash patterns, and frontmatter violations.
+author: jbovet
+
+inputs:
+  skills-path:
+    description: Path to a single skill directory (containing SKILL.md) or a collection directory containing multiple skill subdirectories.
+    required: false
+    default: '.'
+  version:
+    description: Version of oxidized-skills to download (e.g. "v0.1.1"). Use "latest" to always fetch the newest release.
+    required: false
+    default: 'latest'
+  strict:
+    description: Treat warnings as errors. Exit code 1 on any warning.
+    required: false
+    default: 'false'
+  fail-on-warnings:
+    description: Fail the action step when warnings are present, even without errors.
+    required: false
+    default: 'false'
+  format:
+    description: Output format for the audit report. One of pretty, json, sarif.
+    required: false
+    default: 'sarif'
+  sarif-output:
+    description: File path where the SARIF report will be written.
+    required: false
+    default: 'oxidized-skills-report.sarif'
+  config:
+    description: Path to a custom oxidized-skills.toml configuration file.
+    required: false
+    default: ''
+
+outputs:
+  sarif-file:
+    description: Absolute path to the generated SARIF report file.
+    value: ${{ steps.set-outputs.outputs.sarif-file }}
+  errors-count:
+    description: Number of error-severity findings.
+    value: ${{ steps.set-outputs.outputs.errors-count }}
+  warnings-count:
+    description: Number of warning-severity findings.
+    value: ${{ steps.set-outputs.outputs.warnings-count }}
+
+runs:
+  using: composite
+  steps:
+
+    # ── Step 1: Resolve version ───────────────────────────────────────────────
+    - name: Resolve version
+      id: resolve-version
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -sSfL \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/jbovet/oxidized-skills/releases/latest" \
+            | grep '"tag_name"' \
+            | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Error: failed to resolve latest release version from GitHub API."
+            exit 1
+          fi
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Resolved version: $VERSION"
+
+    # ── Step 2: Detect OS and architecture ───────────────────────────────────
+    - name: Detect platform
+      id: detect-platform
+      shell: bash
+      run: |
+        OS="${{ runner.os }}"
+        ARCH="${{ runner.arch }}"
+
+        case "$OS" in
+          Linux)   os_slug="linux" ;;
+          macOS)   os_slug="macos" ;;
+          Windows) os_slug="windows" ;;
+          *)
+            echo "Error: unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
+
+        case "$ARCH" in
+          X64)   arch_slug="x86_64" ;;
+          ARM64) arch_slug="aarch64" ;;
+          *)
+            echo "Error: unsupported architecture: $ARCH"
+            exit 1
+            ;;
+        esac
+
+        if [ "$os_slug" = "windows" ]; then
+          ext="zip"
+          bin_name="oxidized-skills.exe"
+        else
+          ext="tar.gz"
+          bin_name="oxidized-skills"
+        fi
+
+        VERSION="${{ steps.resolve-version.outputs.version }}"
+        archive_name="oxidized-skills-${os_slug}-${arch_slug}.${ext}"
+        cache_key="oxidized-skills-binary-${os_slug}-${arch_slug}-${VERSION}"
+
+        echo "os_slug=$os_slug"           >> "$GITHUB_OUTPUT"
+        echo "arch_slug=$arch_slug"       >> "$GITHUB_OUTPUT"
+        echo "ext=$ext"                   >> "$GITHUB_OUTPUT"
+        echo "bin_name=$bin_name"         >> "$GITHUB_OUTPUT"
+        echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
+        echo "cache_key=$cache_key"       >> "$GITHUB_OUTPUT"
+        echo "Platform: ${os_slug}-${arch_slug}, archive: ${archive_name}"
+
+    # ── Step 3: Restore binary from cache ────────────────────────────────────
+    - name: Restore binary cache
+      id: cache-binary
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/oxidized-skills-bin
+        key: ${{ steps.detect-platform.outputs.cache_key }}
+
+    # ── Step 4: Download and extract binary (cache miss only) ─────────────────
+    - name: Download binary
+      if: steps.cache-binary.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        VERSION="${{ steps.resolve-version.outputs.version }}"
+        ARCHIVE="${{ steps.detect-platform.outputs.archive_name }}"
+        EXT="${{ steps.detect-platform.outputs.ext }}"
+        BIN_DIR="${{ runner.temp }}/oxidized-skills-bin"
+
+        mkdir -p "$BIN_DIR"
+
+        DOWNLOAD_URL="https://github.com/jbovet/oxidized-skills/releases/download/${VERSION}/${ARCHIVE}"
+        echo "Downloading: $DOWNLOAD_URL"
+
+        if ! curl -sSfL "$DOWNLOAD_URL" -o "$BIN_DIR/$ARCHIVE"; then
+          echo "Error: failed to download binary from $DOWNLOAD_URL"
+          echo "Check that version '${VERSION}' exists at https://github.com/jbovet/oxidized-skills/releases"
+          exit 1
+        fi
+
+        if [ "$EXT" = "tar.gz" ]; then
+          tar xzf "$BIN_DIR/$ARCHIVE" -C "$BIN_DIR"
+        else
+          unzip -o "$BIN_DIR/$ARCHIVE" -d "$BIN_DIR"
+        fi
+
+        rm "$BIN_DIR/$ARCHIVE"
+
+        BIN_NAME="${{ steps.detect-platform.outputs.bin_name }}"
+        if [ ! -f "$BIN_DIR/$BIN_NAME" ]; then
+          echo "Error: binary '$BIN_NAME' not found in $BIN_DIR after extraction."
+          ls -la "$BIN_DIR"
+          exit 1
+        fi
+        chmod +x "$BIN_DIR/$BIN_NAME"
+        echo "Binary ready at: $BIN_DIR/$BIN_NAME"
+
+    # ── Step 5: Add binary to PATH ────────────────────────────────────────────
+    - name: Add binary to PATH
+      shell: bash
+      run: |
+        BIN_DIR="${{ runner.temp }}/oxidized-skills-bin"
+        BIN_NAME="${{ steps.detect-platform.outputs.bin_name }}"
+        chmod +x "$BIN_DIR/$BIN_NAME" 2>/dev/null || true
+        echo "$BIN_DIR" >> "$GITHUB_PATH"
+        echo "Added $BIN_DIR to PATH"
+
+    # ── Step 6: Detect single skill vs collection ──────────────────────────────
+    - name: Detect audit mode
+      id: detect-mode
+      shell: bash
+      run: |
+        SKILLS_PATH="${{ inputs.skills-path }}"
+
+        if [ -f "$SKILLS_PATH/SKILL.md" ]; then
+          echo "mode=single" >> "$GITHUB_OUTPUT"
+          echo "Detected: single skill at $SKILLS_PATH"
+        else
+          found=0
+          for d in "$SKILLS_PATH"/*/; do
+            if [ -f "${d}SKILL.md" ]; then
+              found=1
+              break
+            fi
+          done
+          if [ "$found" = "1" ]; then
+            echo "mode=collection" >> "$GITHUB_OUTPUT"
+            echo "Detected: collection directory at $SKILLS_PATH"
+          else
+            echo "Error: no SKILL.md found at '$SKILLS_PATH' or in its immediate subdirectories."
+            echo "Set skills-path to a skill directory (containing SKILL.md) or a collection directory."
+            exit 1
+          fi
+        fi
+
+    # ── Step 7: Build CLI flags ────────────────────────────────────────────────
+    - name: Build CLI flags
+      id: build-flags
+      shell: bash
+      run: |
+        FLAGS=""
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          FLAGS="$FLAGS --strict"
+        fi
+        if [ -n "${{ inputs.config }}" ]; then
+          FLAGS="$FLAGS --config ${{ inputs.config }}"
+        fi
+        echo "flags=$FLAGS" >> "$GITHUB_OUTPUT"
+
+    # ── Step 8: Run audit (JSON) to capture counts ────────────────────────────
+    - name: Run audit (JSON)
+      id: run-audit-json
+      shell: bash
+      run: |
+        SKILLS_PATH="${{ inputs.skills-path }}"
+        MODE="${{ steps.detect-mode.outputs.mode }}"
+        FLAGS="${{ steps.build-flags.outputs.flags }}"
+        JSON_TMP="${{ runner.temp }}/oxidized-skills-results.json"
+        AUDIT_EXIT=0
+
+        if [ "$MODE" = "single" ]; then
+          oxidized-skills audit "$SKILLS_PATH" --format json --output "$JSON_TMP" $FLAGS || AUDIT_EXIT=$?
+        else
+          oxidized-skills audit-all "$SKILLS_PATH" --format json $FLAGS > "$JSON_TMP" || AUDIT_EXIT=$?
+        fi
+
+        echo "audit_exit=$AUDIT_EXIT" >> "$GITHUB_OUTPUT"
+        echo "json_tmp=$JSON_TMP"     >> "$GITHUB_OUTPUT"
+        echo "Audit exit code: $AUDIT_EXIT"
+
+    # ── Step 9: Parse finding counts ──────────────────────────────────────────
+    - name: Parse finding counts
+      id: parse-counts
+      shell: bash
+      run: |
+        JSON_TMP="${{ steps.run-audit-json.outputs.json_tmp }}"
+
+        if [ ! -f "$JSON_TMP" ]; then
+          echo "Warning: JSON output file not found; defaulting counts to 0"
+          echo "errors=0"   >> "$GITHUB_OUTPUT"
+          echo "warnings=0" >> "$GITHUB_OUTPUT"
+        else
+          COUNTS=$(python3 - "$JSON_TMP" <<'PYEOF'
+        import json, sys
+
+        path = sys.argv[1]
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+
+        if not content:
+            print("0 0")
+            sys.exit(0)
+
+        decoder = json.JSONDecoder()
+        total_errors = 0
+        total_warnings = 0
+        idx = 0
+        while idx < len(content):
+            try:
+                obj, end = decoder.raw_decode(content, idx)
+                total_errors += obj.get('summary', {}).get('errors', 0)
+                total_warnings += obj.get('summary', {}).get('warnings', 0)
+                idx = end
+            except json.JSONDecodeError:
+                idx += 1
+
+        print(f"{total_errors} {total_warnings}")
+        PYEOF
+        )
+          ERRORS=$(echo "$COUNTS" | awk '{print $1}')
+          WARNINGS=$(echo "$COUNTS" | awk '{print $2}')
+          ERRORS="${ERRORS:-0}"
+          WARNINGS="${WARNINGS:-0}"
+          echo "errors=$ERRORS"     >> "$GITHUB_OUTPUT"
+          echo "warnings=$WARNINGS" >> "$GITHUB_OUTPUT"
+          echo "Parsed — errors: $ERRORS, warnings: $WARNINGS"
+        fi
+
+    # ── Step 10: Run audit (SARIF) ─────────────────────────────────────────────
+    - name: Run audit (SARIF)
+      shell: bash
+      run: |
+        SKILLS_PATH="${{ inputs.skills-path }}"
+        MODE="${{ steps.detect-mode.outputs.mode }}"
+        FLAGS="${{ steps.build-flags.outputs.flags }}"
+        SARIF_OUT="${{ inputs.sarif-output }}"
+
+        if [ "$MODE" = "single" ]; then
+          oxidized-skills audit "$SKILLS_PATH" --format sarif --output "$SARIF_OUT" $FLAGS || true
+        else
+          # audit-all emits one SARIF document per skill to stdout.
+          # Merge all runs[] arrays into a single valid SARIF document.
+          oxidized-skills audit-all "$SKILLS_PATH" --format sarif $FLAGS | python3 - "$SARIF_OUT" <<'PYEOF' || true
+        import json, sys
+
+        out_path = sys.argv[1]
+        content = sys.stdin.read().strip()
+
+        if not content:
+            merged = {"version": "2.1.0", "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "runs": []}
+            with open(out_path, 'w') as f:
+                json.dump(merged, f, indent=2)
+            sys.exit(0)
+
+        decoder = json.JSONDecoder()
+        documents = []
+        idx = 0
+        while idx < len(content):
+            try:
+                obj, end = decoder.raw_decode(content, idx)
+                documents.append(obj)
+                idx = end
+            except json.JSONDecodeError:
+                idx += 1
+
+        if not documents:
+            merged = {"version": "2.1.0", "runs": []}
+        else:
+            merged = documents[0]
+            for doc in documents[1:]:
+                merged.setdefault('runs', []).extend(doc.get('runs', []))
+
+        with open(out_path, 'w') as f:
+            json.dump(merged, f, indent=2)
+        PYEOF
+        fi
+
+        echo "SARIF report written to: $SARIF_OUT"
+
+    # ── Step 11: Evaluate results ──────────────────────────────────────────────
+    - name: Evaluate results
+      shell: bash
+      run: |
+        ERRORS="${{ steps.parse-counts.outputs.errors }}"
+        WARNINGS="${{ steps.parse-counts.outputs.warnings }}"
+        FAIL_ON_WARNINGS="${{ inputs.fail-on-warnings }}"
+        ERRORS="${ERRORS:-0}"
+        WARNINGS="${WARNINGS:-0}"
+
+        echo "Errors:           $ERRORS"
+        echo "Warnings:         $WARNINGS"
+        echo "Fail on warnings: $FAIL_ON_WARNINGS"
+
+        if [ "$ERRORS" -gt "0" ]; then
+          echo "Audit FAILED: $ERRORS error(s) found."
+          exit 1
+        fi
+
+        if [ "$FAIL_ON_WARNINGS" = "true" ] && [ "$WARNINGS" -gt "0" ]; then
+          echo "Audit FAILED: $WARNINGS warning(s) found and fail-on-warnings is true."
+          exit 1
+        fi
+
+        echo "Audit passed."
+
+    # ── Step 12: Set action outputs ────────────────────────────────────────────
+    - name: Set outputs
+      id: set-outputs
+      if: always()
+      shell: bash
+      run: |
+        SARIF_OUT="${{ inputs.sarif-output }}"
+        ERRORS="${{ steps.parse-counts.outputs.errors }}"
+        WARNINGS="${{ steps.parse-counts.outputs.warnings }}"
+
+        if command -v realpath &>/dev/null; then
+          ABS_SARIF=$(realpath "$SARIF_OUT" 2>/dev/null || echo "$GITHUB_WORKSPACE/$SARIF_OUT")
+        else
+          ABS_SARIF="$GITHUB_WORKSPACE/$SARIF_OUT"
+        fi
+
+        echo "sarif-file=$ABS_SARIF"           >> "$GITHUB_OUTPUT"
+        echo "errors-count=${ERRORS:-0}"        >> "$GITHUB_OUTPUT"
+        echo "warnings-count=${WARNINGS:-0}"    >> "$GITHUB_OUTPUT"
+
+    # ── Step 13: Write job summary ─────────────────────────────────────────────
+    - name: Write job summary
+      if: always()
+      shell: bash
+      run: |
+        ERRORS="${{ steps.parse-counts.outputs.errors }}"
+        WARNINGS="${{ steps.parse-counts.outputs.warnings }}"
+        VERSION="${{ steps.resolve-version.outputs.version }}"
+        SKILLS_PATH="${{ inputs.skills-path }}"
+        MODE="${{ steps.detect-mode.outputs.mode }}"
+        SARIF_OUT="${{ inputs.sarif-output }}"
+        ERRORS="${ERRORS:-0}"
+        WARNINGS="${WARNINGS:-0}"
+
+        {
+          echo "## oxidized-skills Audit Report"
+          echo ""
+          echo "| Field | Value |"
+          echo "|---|---|"
+          echo "| Version | \`${VERSION}\` |"
+          echo "| Path | \`${SKILLS_PATH}\` |"
+          echo "| Mode | ${MODE} |"
+          echo "| Errors | ${ERRORS} |"
+          echo "| Warnings | ${WARNINGS} |"
+          echo "| SARIF report | \`${SARIF_OUT}\` |"
+          echo ""
+          if [ "$ERRORS" -gt "0" ]; then
+            echo "> **Audit FAILED** — ${ERRORS} error(s) found."
+          elif [ "$WARNINGS" -gt "0" ]; then
+            echo "> **Audit passed with warnings** — ${WARNINGS} warning(s)."
+          else
+            echo "> **Audit passed** — no findings."
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"

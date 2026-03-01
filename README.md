@@ -36,6 +36,65 @@
 - **Zero runtime dependencies** — Core scanners are pure Rust regex, no external tools required
 - **Single binary** — Static binary, easy to integrate into CI/CD pipelines
 
+## GitHub Action
+
+The `oxidized-skills` GitHub Action audits skill directories in CI, produces a SARIF report, and optionally uploads it to GitHub Code Scanning.
+
+### Inputs
+
+| Input | Description | Required | Default |
+|---|---|---|---|
+| `skills-path` | Path to a single skill directory or a collection directory containing multiple skills. | No | `.` |
+| `version` | Version of oxidized-skills to download (e.g. `v0.1.1`). Use `latest` to always fetch the newest release. | No | `latest` |
+| `strict` | Treat warnings as errors. Exit code 1 on any warning. | No | `false` |
+| `fail-on-warnings` | Fail the action when warnings are present, even without errors. | No | `false` |
+| `format` | Output format for the audit report. One of `pretty`, `json`, `sarif`. | No | `sarif` |
+| `sarif-output` | File path where the SARIF report will be written. | No | `oxidized-skills-report.sarif` |
+| `config` | Path to a custom `oxidized-skills.toml` configuration file. | No | `` |
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `sarif-file` | Absolute path to the generated SARIF report file. |
+| `errors-count` | Number of error-severity findings. |
+| `warnings-count` | Number of warning-severity findings. |
+
+### Usage examples
+
+#### Basic — run on push and PR
+
+```yaml
+- uses: jbovet/oxidized-skills@v1
+  with:
+    skills-path: ./skills
+```
+
+#### Strict mode — block PR merge on any finding
+
+```yaml
+- uses: jbovet/oxidized-skills@v1
+  with:
+    skills-path: ./skills
+    strict: 'true'
+```
+
+#### Full — with GitHub Security tab integration
+
+```yaml
+- uses: actions/checkout@v4
+- uses: jbovet/oxidized-skills@v1
+  id: audit
+  with:
+    skills-path: ./skills
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: ${{ steps.audit.outputs.sarif-file }}
+```
+
+---
+
 ## Quick Start
 
 ### Install binary
