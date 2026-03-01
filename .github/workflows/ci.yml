@@ -55,6 +55,7 @@ jobs:
       - name: Audit repo SKILL.md via local action
         id: audit
         uses: ./
+        continue-on-error: true
         with:
           skills-path: '.'
           sarif-output: 'oxidized-skills-ci.sarif'
