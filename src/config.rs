@@ -100,6 +100,8 @@ pub struct ScannersConfig {
     pub prompt: bool,
     /// Dangerous bash anti-pattern detection (built-in).
     pub bash_patterns: bool,
+    /// Dangerous TypeScript/JavaScript pattern detection (built-in).
+    pub typescript_patterns: bool,
     /// Unsafe package installation detection (built-in).
     pub package_install: bool,
     /// SKILL.md frontmatter validation (built-in).
@@ -172,6 +174,7 @@ impl Default for ScannersConfig {
             secrets: true,
             prompt: true,
             bash_patterns: true,
+            typescript_patterns: true,
             package_install: true,
             frontmatter: true,
         }
@@ -259,6 +262,7 @@ impl Config {
             "secrets" => self.scanners.secrets,
             "prompt" => self.scanners.prompt,
             "bash_patterns" => self.scanners.bash_patterns,
+            "typescript_patterns" => self.scanners.typescript_patterns,
             "package_install" => self.scanners.package_install,
             "frontmatter" => self.scanners.frontmatter,
             _ => true,
