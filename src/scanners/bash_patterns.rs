@@ -228,25 +228,25 @@ static PATTERNS: &[BashPattern] = &[
 /// `PATTERNS` array.
 static PATTERN_SET: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
-        r"(?i)\|\s*(bash|sh|zsh|fish|ksh)\b",                                    // CAT-A1
-        r#"(?i)\beval\s*["'`\$\(]"#,                                              // CAT-A2
-        r"(?i)\bsource\s*<\s*\(\s*(curl|wget|fetch)",                             // CAT-A3
-        r"(?i)(curl|wget).+/tmp/.+&&\s*(bash|sh|exec)",                           // CAT-A4
-        r"(\$\{?HOME\}?|~)/\.ssh/",                                               // CAT-B1
-        r"(\$\{?HOME\}?|~)/\.aws/",                                               // CAT-B2
-        r"(\$\{?HOME\}?|~)/\.kube/config",                                        // CAT-B3
-        r#"(?i)(curl|wget).+\-d\s+["']?\$"#,                                      // CAT-B4
-        r"(?i)\benv\b.+\|\s*(curl|wget|nc)",                                      // CAT-B5
-        r"(?i)\brm\s+(-[rRfF]+\s+){0,3}(\$HOME|~/|/\s*$|\$\{HOME\})",            // CAT-C1
-        r"(?i)\bdd\s+if=/dev/(urandom|zero|random)\s+of=/dev/",                   // CAT-C2
-        r"(?i)\bnc\s+(-[a-z]+\s+)*-e\s+/bin/",                                    // CAT-D1
-        r"bash\s+-i\s+>&\s*/dev/tcp/",                                            // CAT-D2
-        r"(?i)python\S*\s+-c\s+.*socket.*connect",                                // CAT-D3
-        r"(?i)\bsudo\s+(su|bash|sh)\b",                                           // CAT-E1
-        r"\bchmod\s+[+u]s\b",                                                     // CAT-E2
-        r#"(?i)\brm\s+-[rRfF]+\s+\$[a-zA-Z_][a-zA-Z0-9_]*(?:[^/"\{]|$)"#,        // CAT-G1
-        r#"(?i)(bash|sh)\s+-c\s+["']?\$[a-zA-Z_]"#,                               // CAT-G2
-        r"(?i)(curl|wget)\s+https?://",                                            // CAT-H1
+        r"(?i)\|\s*(bash|sh|zsh|fish|ksh)\b",           // CAT-A1
+        r#"(?i)\beval\s*["'`\$\(]"#,                    // CAT-A2
+        r"(?i)\bsource\s*<\s*\(\s*(curl|wget|fetch)",   // CAT-A3
+        r"(?i)(curl|wget).+/tmp/.+&&\s*(bash|sh|exec)", // CAT-A4
+        r"(\$\{?HOME\}?|~)/\.ssh/",                     // CAT-B1
+        r"(\$\{?HOME\}?|~)/\.aws/",                     // CAT-B2
+        r"(\$\{?HOME\}?|~)/\.kube/config",              // CAT-B3
+        r#"(?i)(curl|wget).+\-d\s+["']?\$"#,            // CAT-B4
+        r"(?i)\benv\b.+\|\s*(curl|wget|nc)",            // CAT-B5
+        r"(?i)\brm\s+(-[rRfF]+\s+){0,3}(\$HOME|~/|/\s*$|\$\{HOME\})", // CAT-C1
+        r"(?i)\bdd\s+if=/dev/(urandom|zero|random)\s+of=/dev/", // CAT-C2
+        r"(?i)\bnc\s+(-[a-z]+\s+)*-e\s+/bin/",          // CAT-D1
+        r"bash\s+-i\s+>&\s*/dev/tcp/",                  // CAT-D2
+        r"(?i)python\S*\s+-c\s+.*socket.*connect",      // CAT-D3
+        r"(?i)\bsudo\s+(su|bash|sh)\b",                 // CAT-E1
+        r"\bchmod\s+[+u]s\b",                           // CAT-E2
+        r#"(?i)\brm\s+-[rRfF]+\s+\$[a-zA-Z_][a-zA-Z0-9_]*(?:[^/"\{]|$)"#, // CAT-G1
+        r#"(?i)(bash|sh)\s+-c\s+["']?\$[a-zA-Z_]"#,     // CAT-G2
+        r"(?i)(curl|wget)\s+https?://",                 // CAT-H1
     ])
     .unwrap()
 });
@@ -341,9 +341,7 @@ impl Scanner for BashPatternScanner {
                     let pattern = &PATTERNS[idx];
 
                     // CAT-H1: skip if the domain is in the allowlist
-                    if pattern.id == "bash/CAT-H1"
-                        && domain_is_allowed(line, &allowed_domains)
-                    {
+                    if pattern.id == "bash/CAT-H1" && domain_is_allowed(line, &allowed_domains) {
                         continue;
                     }
 

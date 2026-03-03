@@ -215,25 +215,25 @@ fn is_benign_file(path: &Path) -> bool {
 /// `PATTERNS` array.
 static PATTERN_SET: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
-        r"(?i)ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)",    // P01
+        r"(?i)ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)", // P01
         r"(?i)disregard\s+(all\s+)?(previous|prior|above|your)\s+(instructions?|prompts?|rules?|guidelines?)", // P02
-        r"(?i)forget\s+(everything|all|what)\s+(you|i)\s+(told|said|know)",                    // P03
+        r"(?i)forget\s+(everything|all|what)\s+(you|i)\s+(told|said|know)", // P03
         r"(?i)you\s+are\s+(now\s+)?(a|an|the)\s+(root|admin|system|super)\s*(user|administrator)?", // P04
         r"(?i)pretend\s+(to\s+be|you('re| are))\s+(a\s+)?(different|another|new)\s+(ai|assistant|system)", // P05
         r"(?i)act\s+as\s+(if\s+)?(you\s+)?(have\s+)?(no|without)\s+(restrictions?|limits?|rules?)", // P06
-        r"(?i)(DAN|do\s+anything\s+now)\s+mode",                                              // P07
-        r"(?i)developer\s+mode\s+(enabled?|activate|on)",                                     // P08
-        r"(?i)bypass\s+(safety|security|content)\s+(filter|check|restriction)s?",              // P09
+        r"(?i)(DAN|do\s+anything\s+now)\s+mode", // P07
+        r"(?i)developer\s+mode\s+(enabled?|activate|on)", // P08
+        r"(?i)bypass\s+(safety|security|content)\s+(filter|check|restriction)s?", // P09
         r"(?i)(send|post|transmit|exfiltrate)\s+.{0,30}(to|via)\s+(http|https|webhook|url|endpoint)", // P10
-        r"(?i)(read|access|get|extract)\s+.{0,20}(password|secret|key|token|credential)s?",   // P11
-        r"(?i)execute\s+(any|arbitrary|untrusted)\s+(code|command|script)s?",                  // P12
-        r"(?i)run\s+.{0,20}without\s+(checking|validation|sanitiz)",                          // P13
-        r"(?i)\b(delete|remove|rm)\s+(-[rfRF]{1,4}\s+)?(/|~/|\.\./|\*|all\b|everything\b)",   // P14
-        r"(?i)\bsudo\b|as\s+root|with\s+(elevated|admin)\s+priv",                            // P15
+        r"(?i)(read|access|get|extract)\s+.{0,20}(password|secret|key|token|credential)s?", // P11
+        r"(?i)execute\s+(any|arbitrary|untrusted)\s+(code|command|script)s?",               // P12
+        r"(?i)run\s+.{0,20}without\s+(checking|validation|sanitiz)",                        // P13
+        r"(?i)\b(delete|remove|rm)\s+(-[rfRF]{1,4}\s+)?(/|~/|\.\./|\*|all\b|everything\b)", // P14
+        r"(?i)\bsudo\b|as\s+root|with\s+(elevated|admin)\s+priv",                           // P15
         r"(?i)(repeat|print|show|reveal|output|display)\s+(your\s+)?(system\s+prompt|initial\s+instructions?|prompt\s+template|base\s+instructions?)", // P16
         r"(?i)(</?(?:instructions?|system|prompt)>|\[/?INST\]|<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)", // P17
         r"(?i)(for\s+a\s+fictional\s+(story|scenario)|hypothetically\s+speaking|in\s+a\s+(simulation|hypothetical|fictional)\s+(scenario|world|context)|let('s|\s+us)\s+pretend|imagine\s+(you\s+are|that\s+you\b))", // P18
-        r"(?i)\b(OVERRIDE|NEW\s+TASK|SYSTEM\s+OVERRIDE):\s*",                                // P19
+        r"(?i)\b(OVERRIDE|NEW\s+TASK|SYSTEM\s+OVERRIDE):\s*", // P19
     ])
     .unwrap()
 });

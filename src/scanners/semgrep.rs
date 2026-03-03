@@ -97,15 +97,11 @@ impl Scanner for SemgrepScanner {
 
         cmd.arg(path);
 
-        let output = match crate::scanners::run_with_timeout(
-            cmd,
-            SEMGREP_TIMEOUT,
-            self.name(),
-            start,
-        ) {
-            Ok(o) => o,
-            Err(scan_result) => return scan_result,
-        };
+        let output =
+            match crate::scanners::run_with_timeout(cmd, SEMGREP_TIMEOUT, self.name(), start) {
+                Ok(o) => o,
+                Err(scan_result) => return scan_result,
+            };
 
         // semgrep exits non-zero when findings are present or on error
         let stdout = String::from_utf8_lossy(&output.stdout);

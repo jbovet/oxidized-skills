@@ -127,9 +127,7 @@ impl Scanner for ShellCheckScanner {
 
                 // Read file path from shellcheck JSON output (needed since we
                 // batch multiple files per invocation).
-                let file_path = item["file"]
-                    .as_str()
-                    .map(std::path::PathBuf::from);
+                let file_path = item["file"].as_str().map(std::path::PathBuf::from);
 
                 findings.push(Finding {
                     rule_id,
