@@ -117,6 +117,8 @@ pub fn collect_files(path: &Path, extensions: &[&str]) -> Vec<PathBuf> {
             }
         }
     }
+    // Sort for deterministic finding order across runs and platforms.
+    files.sort();
     files
 }
 
