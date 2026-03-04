@@ -414,6 +414,8 @@ fn compute_audit_metrics(
     for f in findings {
         let is_critical = f.rule_id.starts_with("bash/CAT-A")
             || f.rule_id.starts_with("bash/CAT-D")
+            || f.rule_id.starts_with("typescript/CAT-A")
+            || f.rule_id.starts_with("typescript/CAT-D")
             || f.rule_id.starts_with("prompt/");
 
         match f.severity {
@@ -480,6 +482,8 @@ fn compute_security_score(findings: &[Finding]) -> (u8, SecurityGrade) {
             Severity::Error => {
                 let is_critical = f.rule_id.starts_with("bash/CAT-A")
                     || f.rule_id.starts_with("bash/CAT-D")
+                    || f.rule_id.starts_with("typescript/CAT-A")
+                    || f.rule_id.starts_with("typescript/CAT-D")
                     || f.rule_id.starts_with("prompt/");
                 if is_critical {
                     30

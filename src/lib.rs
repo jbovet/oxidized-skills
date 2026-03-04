@@ -41,6 +41,7 @@
 //! |---------|--------------|-------------|
 //! | `prompt` | — | Prompt injection pattern detection |
 //! | `bash_patterns` | — | Dangerous bash anti-patterns (Categories A–H) |
+//! | `typescript_patterns` | — | Dangerous TypeScript/JavaScript patterns (Categories A–H) |
 //! | `package_install` | — | Unsafe package installation patterns |
 //! | `frontmatter` | — | SKILL.md frontmatter validation |
 //! | `shellcheck` | [shellcheck] | Shell script linting |

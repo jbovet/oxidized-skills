@@ -4,7 +4,7 @@
 //! categories:
 //!
 //! - **Built-in** (no external dependencies): [`prompt`], [`bash_patterns`],
-//!   [`package_install`], [`frontmatter`].
+//!   [`typescript`], [`package_install`], [`frontmatter`].
 //! - **External** (require a tool on `PATH`): [`shellcheck`], [`secrets`]
 //!   (gitleaks), [`semgrep`].
 //!
@@ -18,6 +18,7 @@ pub mod prompt;
 pub mod secrets;
 pub mod semgrep;
 pub mod shellcheck;
+pub mod typescript;
 
 use crate::config::Config;
 use crate::finding::ScanResult;
@@ -79,6 +80,7 @@ pub fn all_scanners() -> Vec<Box<dyn Scanner>> {
     vec![
         Box::new(prompt::PromptScanner),
         Box::new(bash_patterns::BashPatternScanner),
+        Box::new(typescript::TypeScriptScanner),
         Box::new(package_install::PackageInstallScanner),
         Box::new(frontmatter::FrontmatterScanner),
         Box::new(shellcheck::ShellCheckScanner),
@@ -275,6 +277,7 @@ pub struct RuleInfo {
 pub fn all_rules() -> Vec<RuleInfo> {
     let mut rules = Vec::new();
     rules.extend(bash_patterns::rules());
+    rules.extend(typescript::rules());
     rules.extend(prompt::rules());
     rules.extend(package_install::rules());
     rules.extend(frontmatter::rules());
