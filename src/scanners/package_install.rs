@@ -28,7 +28,7 @@
 
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
-use crate::scanners::{collect_files, is_suppressed_inline, RuleInfo, Scanner};
+use crate::scanners::{collect_files, is_suppressed_inline, read_file_limited, RuleInfo, Scanner};
 use regex::Regex;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -149,7 +149,7 @@ impl Scanner for PackageInstallScanner {
             .collect();
 
         for file in &files {
-            let content = match std::fs::read_to_string(file) {
+            let content = match read_file_limited(file) {
                 Ok(c) => c,
                 Err(_) => continue,
             };

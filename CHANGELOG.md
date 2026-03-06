@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`bash/CAT-A1` — pipe-to-shell** now detects absolute shell paths (`| /bin/bash`, `| /usr/bin/env bash`) and `dash` in addition to bare shell names, closing bypass via absolute paths and environment launchers.
+- **`bash/CAT-B1/B2/B3` — credential path detection** extended to hard-coded `/root/` and `/home/<user>/` paths; previously only `$HOME`, `${HOME}`, and `~` prefixes were matched, missing common container and multi-user scenarios.
+- **`bash/CAT-B4` — env-var exfiltration** now also detects `--data`, `--data-binary`, `--data-urlencode` (curl) and `--post-data` (wget), closing bypasses that used long-form flags instead of `-d`.
+- **`bash/CAT-D1` — netcat reverse shell** now detects `ncat` in addition to `nc`, and accepts `--exec` as well as `-e`, closing a gap on systems where `ncat` replaces `nc` (e.g., RHEL/CentOS).
+- **`bash/CAT-D2` — bash `/dev/tcp` reverse shell** pattern broadened to match the stdout-only redirect form (`bash -i >/dev/tcp/...`) and the `exec`-file-descriptor forms (`exec 3<>/dev/tcp/...`), which were not caught by the previous single-form regex.
+- **`bash/CAT-E2` — SUID bit** now matches `chmod u+s`, `chmod a+s`, `chmod ug+s` (symbolic) and numeric modes like `chmod 4755`, `chmod 6755` (SUID+SGID). Previously only `chmod +s` was detected.
+- **`prompt/inject-delimiter` (P17)** extended with Llama 3 special tokens (`<|begin_of_text|>`, `<|start_header_id|>`, `<|end_header_id|>`, `<|eot_id|>`, `<|end_of_text|>`); previously only ChatML (OpenAI) and Llama 2 `[INST]` delimiters were covered.
+- **DoS via oversized files** — all built-in scanners (`bash_patterns`, `typescript`, `prompt`, `package_install`, `frontmatter`) now use a shared `read_file_limited` helper that refuses to read files larger than 10 MB, emitting an `Info` finding instead of attempting to load gigabyte-scale inputs into memory.
+- **`typescript` scanner config key** — the `[scanners]` TOML key is now `typescript` (matching the scanner name used in reports), with a `typescript_patterns` alias for backward compatibility. Previously, `typescript = false` in the config was silently ignored because the struct field was mismatched.
+
 ## [0.3.0] - 2026-03-04
 
 ### Added

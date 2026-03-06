@@ -593,12 +593,17 @@ fn rules_catalogue_covers_all_categories() {
 
 #[test]
 fn scanner_config_toggle_disables_scanner() {
-    // When typescript_patterns = false, is_scanner_enabled must return false.
+    // When typescript = false, is_scanner_enabled must return false for both
+    // the canonical name ("typescript") and the legacy alias ("typescript_patterns").
     let mut config = Config::default();
-    config.scanners.typescript_patterns = false;
+    config.scanners.typescript = false;
+    assert!(
+        !config.is_scanner_enabled("typescript"),
+        "typescript toggle must disable the scanner via canonical name"
+    );
     assert!(
         !config.is_scanner_enabled("typescript_patterns"),
-        "typescript_patterns toggle must disable the scanner"
+        "typescript toggle must also disable the scanner via legacy alias"
     );
 }
 

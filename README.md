@@ -235,22 +235,22 @@ Run `oxidized-skills check-tools` to see which external tools are available in y
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `bash/CAT-A1` | Error | Pipe to shell (RCE) |
+| `bash/CAT-A1` | Error | Pipe to shell — bare names (`\| bash`), absolute paths (`\| /bin/bash`), and `env` launchers (`\| env bash`, `\| dash`) |
 | `bash/CAT-A2` | Error | eval of dynamic content |
 | `bash/CAT-A3` | Error | Source from URL |
 | `bash/CAT-A4` | Error | Download to temp then execute |
-| `bash/CAT-B1` | Error | Access to `$HOME/.ssh/` or `~/.ssh/` |
-| `bash/CAT-B2` | Error | Access to `$HOME/.aws/` or `~/.aws/` |
-| `bash/CAT-B3` | Error | Access to `$HOME/.kube/config` or `~/.kube/config` |
-| `bash/CAT-B4` | Error | Env var (`$VAR` or `${VAR}`) sent as HTTP POST body |
+| `bash/CAT-B1` | Error | SSH key access — `$HOME/.ssh/`, `~/.ssh/`, `/root/.ssh/`, `/home/*/.ssh/` |
+| `bash/CAT-B2` | Error | AWS credential access — `$HOME/.aws/`, `~/.aws/`, `/root/.aws/`, `/home/*/.aws/` |
+| `bash/CAT-B3` | Error | Kubeconfig access — `$HOME/.kube/config`, `~/.kube/config`, `/root/.kube/config`, `/home/*/.kube/config` |
+| `bash/CAT-B4` | Error | Env var sent as HTTP POST body — `-d`, `--data`, `--data-binary`, `--data-urlencode`, `--post-data` |
 | `bash/CAT-B5` | Error | env output piped to network tool |
 | `bash/CAT-C1` | Error | rm -rf on home/root directory |
 | `bash/CAT-C2` | Error | dd disk wipe |
-| `bash/CAT-D1` | Error | Netcat reverse shell |
-| `bash/CAT-D2` | Error | Bash /dev/tcp reverse shell |
+| `bash/CAT-D1` | Error | Reverse shell via `nc`/`ncat` with `-e`/`--exec /bin/...` |
+| `bash/CAT-D2` | Error | Bash `/dev/tcp` reverse shell — `>&`, `>`, stdout-only, and `exec`-fd forms |
 | `bash/CAT-D3` | Error | Python socket reverse shell |
 | `bash/CAT-E1` | Warning | sudo shell escalation |
-| `bash/CAT-E2` | Warning | SUID bit escalation |
+| `bash/CAT-E2` | Warning | SUID bit — symbolic (`+s`, `u+s`, `a+s`) and numeric modes (`chmod 4755`, `chmod 6755`) |
 | `bash/CAT-G1` | Warning | rm -rf with unquoted variable (including at end of line) |
 | `bash/CAT-G2` | Warning | Shell invoked with variable arg |
 | `bash/CAT-H1` | Info | Outbound HTTP call detected |
@@ -276,7 +276,7 @@ Run `oxidized-skills check-tools` to see which external tools are available in y
 | `prompt/exfil-sysPrompt` | Error | System prompt extraction attempt |
 | `prompt/inject-execute` | Error | Arbitrary code execution instruction |
 | `prompt/inject-unvalidated` | Error | Run without validation instruction |
-| `prompt/inject-delimiter` | Error | Model context delimiter injection |
+| `prompt/inject-delimiter` | Error | Model context delimiter injection — ChatML (`<\|im_start\|>`), Llama 2 `[INST]`, and Llama 3 (`<\|begin_of_text\|>`, `<\|eot_id\|>`, etc.) |
 | `prompt/perm-delete-all` | Warning | Mass deletion instruction (`rm -rf /`, `delete all`, `rm *`) |
 | `prompt/perm-sudo` | Warning | Privilege escalation (sudo/root) |
 

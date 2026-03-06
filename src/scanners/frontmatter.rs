@@ -34,7 +34,7 @@
 
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
-use crate::scanners::{RuleInfo, Scanner};
+use crate::scanners::{read_file_limited, RuleInfo, Scanner};
 use std::path::Path;
 use std::sync::LazyLock;
 use std::time::Instant;
@@ -559,8 +559,8 @@ impl Scanner for FrontmatterScanner {
             );
         }
 
-        // Read SKILL.md.
-        let content = match std::fs::read_to_string(&skill_md) {
+        // Read SKILL.md (size-limited to prevent DoS via oversized files).
+        let content = match read_file_limited(&skill_md) {
             Ok(c) => c,
             Err(e) => {
                 return ScanResult {

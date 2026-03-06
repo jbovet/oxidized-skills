@@ -236,6 +236,35 @@ pub fn run_with_timeout(
     })
 }
 
+/// Maximum file size (in bytes) that any built-in scanner will read into memory.
+///
+/// Files exceeding this limit are skipped with a descriptive `Info` finding
+/// so the audit report still shows that a file was not scanned, rather than
+/// silently dropping it.  10 MB is far above any realistic skill file while
+/// still preventing memory exhaustion from gigabyte-scale crafted inputs.
+pub const MAX_FILE_SIZE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+
+/// Reads a file into a `String`, refusing files larger than [`MAX_FILE_SIZE_BYTES`].
+///
+/// Returns `Err(String)` with a human-readable message when:
+/// - The file metadata cannot be read.
+/// - The file size exceeds the limit (DoS guard).
+/// - The file cannot be read or contains invalid UTF-8.
+///
+/// All built-in scanners use this instead of `std::fs::read_to_string` so
+/// that a single malicious oversized file cannot cause an OOM-kill of the
+/// audit runner.
+pub fn read_file_limited(path: &Path) -> Result<String, String> {
+    let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    if size > MAX_FILE_SIZE_BYTES {
+        return Err(format!(
+            "file too large ({} bytes); maximum is {} bytes — skipping to prevent memory exhaustion",
+            size, MAX_FILE_SIZE_BYTES
+        ));
+    }
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
 /// Returns `true` if `line` ends with an inline suppression marker.
 ///
 /// Recognized markers (case-insensitive):

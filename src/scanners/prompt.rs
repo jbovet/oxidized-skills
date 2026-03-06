@@ -31,7 +31,7 @@
 
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
-use crate::scanners::{collect_files, RuleInfo, Scanner};
+use crate::scanners::{collect_files, read_file_limited, RuleInfo, Scanner};
 use regex::RegexSet;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -231,7 +231,8 @@ static PATTERN_SET: LazyLock<RegexSet> = LazyLock::new(|| {
         r"(?i)\b(delete|remove|rm)\s+(-[rfRF]{1,4}\s+)?(/|~/|\.\./|\*|all\b|everything\b)", // P14
         r"(?i)\bsudo\b|as\s+root|with\s+(elevated|admin)\s+priv",                           // P15
         r"(?i)(repeat|print|show|reveal|output|display)\s+(your\s+)?(system\s+prompt|initial\s+instructions?|prompt\s+template|base\s+instructions?)", // P16
-        r"(?i)(</?(?:instructions?|system|prompt)>|\[/?INST\]|<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)", // P17
+        // P17: model-context delimiters — ChatML (OpenAI), Llama 2 [INST], Llama 3 special tokens
+        r"(?i)(</?(?:instructions?|system|prompt)>|\[/?INST\]|<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>|<\|(?:begin_of_text|end_of_text|start_header_id|end_header_id|eot_id)\|>)", // P17
         r"(?i)(for\s+a\s+fictional\s+(story|scenario)|hypothetically\s+speaking|in\s+a\s+(simulation|hypothetical|fictional)\s+(scenario|world|context)|let('s|\s+us)\s+pretend|imagine\s+(you\s+are|that\s+you\b))", // P18
         r"(?i)\b(OVERRIDE|NEW\s+TASK|SYSTEM\s+OVERRIDE):\s*", // P19
     ])
@@ -276,7 +277,7 @@ impl Scanner for PromptScanner {
                 continue;
             }
 
-            let content = match std::fs::read_to_string(file) {
+            let content = match read_file_limited(file) {
                 Ok(c) => c,
                 Err(e) => {
                     findings.push(Finding {

@@ -28,7 +28,7 @@
 
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
-use crate::scanners::{collect_files, is_suppressed_inline, RuleInfo, Scanner};
+use crate::scanners::{collect_files, is_suppressed_inline, read_file_limited, RuleInfo, Scanner};
 use regex::{Regex, RegexSet};
 use std::path::Path;
 use std::sync::LazyLock;
@@ -228,25 +228,47 @@ static PATTERNS: &[BashPattern] = &[
 /// `PATTERNS` array.
 static PATTERN_SET: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
-        r"(?i)\|\s*(bash|sh|zsh|fish|ksh)\b",           // CAT-A1
-        r#"(?i)\beval\s*["'`\$\(]"#,                    // CAT-A2
-        r"(?i)\bsource\s*<\s*\(\s*(curl|wget|fetch)",   // CAT-A3
-        r"(?i)(curl|wget).+/tmp/.+&&\s*(bash|sh|exec)", // CAT-A4
-        r"(\$\{?HOME\}?|~)/\.ssh/",                     // CAT-B1
-        r"(\$\{?HOME\}?|~)/\.aws/",                     // CAT-B2
-        r"(\$\{?HOME\}?|~)/\.kube/config",              // CAT-B3
-        r#"(?i)(curl|wget).+\-d\s+["']?\$"#,            // CAT-B4
-        r"(?i)\benv\b.+\|\s*(curl|wget|nc)",            // CAT-B5
-        r"(?i)\brm\s+(-[rRfF]+\s+){0,3}(\$HOME|~/|/\s*$|\$\{HOME\})", // CAT-C1
-        r"(?i)\bdd\s+if=/dev/(urandom|zero|random)\s+of=/dev/", // CAT-C2
-        r"(?i)\bnc\s+(-[a-z]+\s+)*-e\s+/bin/",          // CAT-D1
-        r"bash\s+-i\s+>&\s*/dev/tcp/",                  // CAT-D2
-        r"(?i)python\S*\s+-c\s+.*socket.*connect",      // CAT-D3
-        r"(?i)\bsudo\s+(su|bash|sh)\b",                 // CAT-E1
-        r"\bchmod\s+[+u]s\b",                           // CAT-E2
-        r#"(?i)\brm\s+-[rRfF]+\s+\$[a-zA-Z_][a-zA-Z0-9_]*(?:[^/"\{]|$)"#, // CAT-G1
-        r#"(?i)(bash|sh)\s+-c\s+["']?\$[a-zA-Z_]"#,     // CAT-G2
-        r"(?i)(curl|wget)\s+https?://",                 // CAT-H1
+        // CAT-A1: pipe-to-shell — matches bare names, absolute paths, and `env` launchers.
+        //   Covers: `| bash`, `| /bin/bash`, `| /usr/bin/env bash`, `| dash`
+        r"(?i)\|\s*(?:/\S+/)?(?:env\s+)?(bash|sh|zsh|fish|ksh|dash)\b",
+        // CAT-A2
+        r#"(?i)\beval\s*["'`\$\(]"#,
+        // CAT-A3
+        r"(?i)\bsource\s*<\s*\(\s*(curl|wget|fetch)",
+        // CAT-A4
+        r"(?i)(curl|wget).+/tmp/.+&&\s*(bash|sh|exec)",
+        // CAT-B1: SSH key access — env vars, tilde, AND hard-coded /root or /home/<user>
+        r"(\$\{?HOME\}?|~|/root|/home/[^/\s]+)/\.ssh/",
+        // CAT-B2: AWS credential access
+        r"(\$\{?HOME\}?|~|/root|/home/[^/\s]+)/\.aws/",
+        // CAT-B3: kubeconfig access
+        r"(\$\{?HOME\}?|~|/root|/home/[^/\s]+)/\.kube/config",
+        // CAT-B4: env-var POST — `-d`, `--data`, `--data-binary`, `--data-urlencode`, `--post-data`
+        // `[\s=]` handles both space-separated (`--data "$V"`) and `=`-separated (`--post-data="$V"`).
+        // `[^\n]*\$` allows content before the variable (e.g. `key=$VAR` in --data-urlencode).
+        r#"(?i)(curl|wget).+(-d\b|--data(?:-binary|-urlencode)?|--post-data)[\s=]["']?[^\n]*\$"#,
+        // CAT-B5
+        r"(?i)\benv\b.+\|\s*(curl|wget|nc)",
+        // CAT-C1
+        r"(?i)\brm\s+(-[rRfF]+\s+){0,3}(\$HOME|~/|/\s*$|\$\{HOME\})",
+        // CAT-C2
+        r"(?i)\bdd\s+if=/dev/(urandom|zero|random)\s+of=/dev/",
+        // CAT-D1: netcat reverse shell — covers both `nc` and `ncat`; `-e` and `--exec`
+        r"(?i)\b(nc|ncat)\s+(-[a-zA-Z]+\s+)*(-e|--exec)\s+/bin/",
+        // CAT-D2: bash /dev/tcp — canonical form, stdout-only redirect, and exec-fd forms
+        r"(?i)(bash\s+-i\s+>?&?\s*/dev/tcp/|exec\s+\d+[<>]+/dev/tcp/|<>/dev/tcp/)",
+        // CAT-D3
+        r"(?i)python\S*\s+-c\s+.*socket.*connect",
+        // CAT-E1
+        r"(?i)\bsudo\s+(su|bash|sh)\b",
+        // CAT-E2: SUID — symbolic (`+s`, `u+s`, `a+s`, `ug+s`) AND numeric (`chmod 4755`, `chmod 6755`)
+        r"\bchmod\s+(?:[ugoa]*\+[ugoa]*s|0?[2467][0-7]{3})\b",
+        // CAT-G1
+        r#"(?i)\brm\s+-[rRfF]+\s+\$[a-zA-Z_][a-zA-Z0-9_]*(?:[^/"\{]|$)"#,
+        // CAT-G2
+        r#"(?i)(bash|sh)\s+-c\s+["']?\$[a-zA-Z_]"#,
+        // CAT-H1
+        r"(?i)(curl|wget)\s+https?://",
     ])
     .unwrap()
 });
@@ -301,11 +323,11 @@ impl Scanner for BashPatternScanner {
             .collect();
 
         for file in &files {
-            let content = match std::fs::read_to_string(file) {
+            let content = match read_file_limited(file) {
                 Ok(c) => c,
                 Err(e) => {
-                    // Surface I/O errors (permissions, encoding) as Info findings
-                    // so the author knows a file was not scanned.
+                    // Surface I/O errors (permissions, encoding, or size limit) as
+                    // Info findings so the author knows a file was not scanned.
                     findings.push(Finding {
                         rule_id: "bash/read-error".to_string(),
                         message: format!("Could not read file: {}", e),

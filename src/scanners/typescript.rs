@@ -26,7 +26,7 @@
 
 use crate::config::Config;
 use crate::finding::{Finding, ScanResult, Severity};
-use crate::scanners::{collect_files, RuleInfo, Scanner};
+use crate::scanners::{collect_files, read_file_limited, RuleInfo, Scanner};
 use regex::{Regex, RegexSet};
 use std::path::Path;
 use std::sync::LazyLock;
@@ -281,11 +281,11 @@ impl Scanner for TypeScriptScanner {
             .collect();
 
         for file in &files {
-            let content = match std::fs::read_to_string(file) {
+            let content = match read_file_limited(file) {
                 Ok(c) => c,
                 Err(e) => {
-                    // Surface I/O errors as Info findings so the author knows
-                    // a file was skipped rather than silently passing.
+                    // Surface I/O errors (including size-limit violations) as
+                    // Info findings so the author knows a file was skipped.
                     findings.push(Finding {
                         rule_id: "typescript/read-error".to_string(),
                         message: format!("Could not read file: {}", e),
