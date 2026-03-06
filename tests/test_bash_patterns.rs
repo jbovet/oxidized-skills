@@ -754,6 +754,19 @@ fn cat_d2_detects_exec_fd_form() {
     );
 }
 
+#[test]
+fn cat_d2_no_false_positive_without_redirect() {
+    // `bash -i /dev/tcp/...` passes /dev/tcp as a plain argument — not a reverse shell.
+    // A redirect character (`>` or `>&`) is required for the TCP backdoor to work.
+    assert!(
+        !scan_script(
+            "#!/bin/bash\nbash -i /dev/tcp/evil.com/4444\n",
+            "bash/CAT-D2"
+        ),
+        "CAT-D2 must NOT fire when /dev/tcp is an argument with no redirection"
+    );
+}
+
 // ── CAT-E2: SUID — symbolic and numeric modes ────────────────────────────────
 
 #[test]

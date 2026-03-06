@@ -255,8 +255,11 @@ static PATTERN_SET: LazyLock<RegexSet> = LazyLock::new(|| {
         r"(?i)\bdd\s+if=/dev/(urandom|zero|random)\s+of=/dev/",
         // CAT-D1: netcat reverse shell — covers both `nc` and `ncat`; `-e` and `--exec`
         r"(?i)\b(nc|ncat)\s+(-[a-zA-Z]+\s+)*(-e|--exec)\s+/bin/",
-        // CAT-D2: bash /dev/tcp — canonical form, stdout-only redirect, and exec-fd forms
-        r"(?i)(bash\s+-i\s+>?&?\s*/dev/tcp/|exec\s+\d+[<>]+/dev/tcp/|<>/dev/tcp/)",
+        // CAT-D2: bash /dev/tcp — canonical (`>&`), stdout-only (`>`), and exec-fd forms.
+        // `>` is required; without it `bash -i /dev/tcp/...` would match as a false positive
+        // (passing /dev/tcp as an argument, not a redirect). `&` is optional to cover both
+        // `bash -i > /dev/tcp/` and `bash -i >& /dev/tcp/` variants.
+        r"(?i)(bash\s+-i\s+>&?\s*/dev/tcp/|exec\s+\d+[<>]+/dev/tcp/|<>/dev/tcp/)",
         // CAT-D3
         r"(?i)python\S*\s+-c\s+.*socket.*connect",
         // CAT-E1

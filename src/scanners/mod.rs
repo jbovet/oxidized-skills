@@ -247,22 +247,194 @@ pub const MAX_FILE_SIZE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 /// Reads a file into a `String`, refusing files larger than [`MAX_FILE_SIZE_BYTES`].
 ///
 /// Returns `Err(String)` with a human-readable message when:
-/// - The file metadata cannot be read.
+/// - The file cannot be opened.
+/// - The file metadata cannot be read from the open handle.
+/// - The file is not a regular file (device, FIFO, socket) — these report
+///   `size == 0` via `stat(2)` but can stream infinite data (e.g. `/dev/zero`).
 /// - The file size exceeds the limit (DoS guard).
 /// - The file cannot be read or contains invalid UTF-8.
 ///
+/// ## Security properties
+///
+/// - **Special-file rejection**: `std::fs::metadata` (stat) checks
+///   `FileType::is_file()` *before* `File::open`.  This is necessary because
+///   opening a FIFO or socket with `O_RDONLY` blocks until a writer appears;
+///   the type check prevents that blocking.  Character/block devices,
+///   FIFOs, and sockets all report `st_size == 0` but can stream infinite
+///   data — they are rejected without ever calling `open(2)`.
+/// - **TOCTOU-free size guard**: after opening, [`std::fs::File::metadata`]
+///   calls `fstat(fd)`.  The size check operates on the exact inode that was
+///   opened; a symlink swap after `open(2)` cannot redirect it to a larger
+///   file.  (The pre-open type check has a narrow TOCTOU window, but a
+///   regular-file → special-file swap is not a realistic threat against a
+///   static skill directory.)
+/// - **Hard read cap**: [`Read::take`]`(MAX_FILE_SIZE_BYTES + 1)` limits the
+///   actual kernel copy independently of the `fstat` result, providing
+///   defence-in-depth for files that grow between the size check and the read
+///   (appended logs, `/proc` pseudo-files on Linux, etc.).
+///
 /// All built-in scanners use this instead of `std::fs::read_to_string` so
-/// that a single malicious oversized file cannot cause an OOM-kill of the
-/// audit runner.
+/// that a single malicious oversized or special file cannot cause an OOM-kill
+/// of the audit runner.
 pub fn read_file_limited(path: &Path) -> Result<String, String> {
-    let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    use std::io::Read;
+
+    // ── 1. Pre-open type check via stat(path) ──────────────────────────────────
+    // Opening a FIFO or socket for reading with the default O_RDONLY flag
+    // blocks the calling thread until a writer appears — we must reject
+    // special files *before* calling File::open.  std::fs::metadata follows
+    // symlinks, so a symlink-to-FIFO is also caught here.
+    //
+    // TOCTOU note: this stat and the open() below are two separate syscalls.
+    // The window is negligible in practice (a static skill directory cannot
+    // be atomically replaced mid-scan by an unprivileged user), and the size
+    // guard in step 4 uses fstat(fd) — which *is* TOCTOU-free — for the
+    // security-critical limit.
+    let path_meta = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    if !path_meta.file_type().is_file() {
+        return Err("not a regular file — skipping to prevent stream exhaustion".to_string());
+    }
+
+    // ── 2. Open ───────────────────────────────────────────────────────────────
+    // Safe to open now that we confirmed it is a regular file.
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+
+    // ── 3. Size check via fstat(fd) ───────────────────────────────────────────
+    // file.metadata() calls fstat(fd) — it operates on the exact inode we
+    // opened and cannot be redirected by a symlink swap that happens after
+    // step 2.  Any error is surfaced explicitly; no unwrap_or(0) silencing.
+    let meta = file
+        .metadata()
+        .map_err(|e| format!("cannot stat open file: {e}"))?;
+
+    let size = meta.len();
     if size > MAX_FILE_SIZE_BYTES {
         return Err(format!(
-            "file too large ({} bytes); maximum is {} bytes — skipping to prevent memory exhaustion",
-            size, MAX_FILE_SIZE_BYTES
+            "file too large ({size} bytes); maximum is {MAX_FILE_SIZE_BYTES} \
+             bytes — skipping to prevent memory exhaustion"
         ));
     }
-    std::fs::read_to_string(path).map_err(|e| e.to_string())
+
+    // ── 4. Capped read — defence-in-depth ─────────────────────────────────────
+    // take(MAX_FILE_SIZE_BYTES + 1) caps the kernel copy independently of the
+    // fstat result, covering files that grow between steps 3 and 4 (e.g.
+    // append-heavy logs, /proc pseudo-files on Linux).
+    // We read into Vec<u8> first so that a UTF-8 decode error produces a clear
+    // Err rather than a panic.
+    let mut buf = Vec::with_capacity(size as usize);
+    file.take(MAX_FILE_SIZE_BYTES + 1)
+        .read_to_end(&mut buf)
+        .map_err(|e| e.to_string())?;
+
+    if buf.len() as u64 > MAX_FILE_SIZE_BYTES {
+        return Err(format!(
+            "file exceeded {MAX_FILE_SIZE_BYTES} bytes during read — skipping"
+        ));
+    }
+
+    String::from_utf8(buf).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    // ── Happy path ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn read_file_limited_accepts_regular_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("skill.md");
+        std::fs::write(&path, "hello world\n").unwrap();
+        let result = read_file_limited(&path);
+        assert_eq!(result.unwrap(), "hello world\n");
+    }
+
+    // ── Error propagation (no unwrap_or silencing) ────────────────────────────
+
+    #[test]
+    fn read_file_limited_rejects_nonexistent_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("does_not_exist.md");
+        let result = read_file_limited(&path);
+        assert!(
+            result.is_err(),
+            "must return Err for a path that does not exist"
+        );
+    }
+
+    // ── Size guard ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn read_file_limited_rejects_oversized_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("huge.md");
+        // Write MAX + 1 bytes so the pre-check fires.
+        let oversized = vec![b'a'; (MAX_FILE_SIZE_BYTES + 1) as usize];
+        std::fs::write(&path, &oversized).unwrap();
+        let result = read_file_limited(&path);
+        assert!(
+            result.is_err(),
+            "must return Err for a file exceeding MAX_FILE_SIZE_BYTES"
+        );
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("file too large") || msg.contains("exceeded"),
+            "error message should mention size limit, got: {msg}"
+        );
+    }
+
+    // ── UTF-8 error ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn read_file_limited_utf8_error_returns_err() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("binary.bin");
+        // Write bytes that are not valid UTF-8.
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(&[0xFF, 0xFE, 0x00, 0x01]).unwrap();
+        let result = read_file_limited(&path);
+        assert!(
+            result.is_err(),
+            "must return Err for non-UTF-8 file content"
+        );
+    }
+
+    // ── Special-file rejection (Unix only) ───────────────────────────────────
+
+    /// Creates a named pipe (FIFO) at `path` using the `mkfifo` system call.
+    /// Returns `false` when the OS does not support FIFOs (non-Unix CI).
+    #[cfg(unix)]
+    fn make_fifo(path: &std::path::Path) -> bool {
+        std::process::Command::new("mkfifo")
+            .arg(path)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn read_file_limited_rejects_fifo_without_blocking() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.fifo");
+        if !make_fifo(&path) {
+            // mkfifo unavailable in this environment — skip gracefully.
+            return;
+        }
+        // This must return Err immediately without blocking on the pipe read.
+        let result = read_file_limited(&path);
+        assert!(
+            result.is_err(),
+            "must return Err for a FIFO — not block waiting for a writer"
+        );
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("not a regular file"),
+            "error message should identify the special-file rejection, got: {msg}"
+        );
+    }
 }
 
 /// Returns `true` if `line` ends with an inline suppression marker.

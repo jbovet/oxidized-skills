@@ -265,7 +265,7 @@ impl Config {
             "secrets" => self.scanners.secrets,
             "prompt" => self.scanners.prompt,
             "bash_patterns" => self.scanners.bash_patterns,
-            // Accept both names: scanner uses "typescript"; legacy TOML used "typescript_patterns"
+            // Accept both names for the config key. The scanner's reported name is "typescript_patterns"
             "typescript" | "typescript_patterns" => self.scanners.typescript,
             "package_install" => self.scanners.package_install,
             "frontmatter" => self.scanners.frontmatter,
