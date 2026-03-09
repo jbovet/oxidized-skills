@@ -1,5 +1,5 @@
 name: oxidized-agentic-audit
-description: Security auditing for AI skills and agents - scans for prompt injection, dangerous bash patterns, frontmatter violations, and agentic security issues
+description: Security auditing for AI skills and agents — prompt injection, bash patterns, frontmatter and agentic security checks
 author: jbovet
 
 branding:
