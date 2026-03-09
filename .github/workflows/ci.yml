@@ -58,6 +58,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build binary locally
+        run: cargo build --release
+
+      - name: Add local binary to PATH (unix)
+        if: runner.os != 'Windows'
+        run: echo "$GITHUB_WORKSPACE/target/release" >> "$GITHUB_PATH"
+
+      - name: Add local binary to PATH (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: echo "$env:GITHUB_WORKSPACE\target\release" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Audit repo SKILL.md via local action
         id: audit
         uses: ./
@@ -65,6 +83,7 @@ jobs:
         with:
           skills-path: '.'
           sarif-output: 'oxidized-agentic-audit-ci.sarif'
+          skip-download: 'true'
 
       - name: Show audit outputs
         if: always()
@@ -83,7 +102,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload SARIF to GitHub Code Scanning
-        if: always() && matrix.os == 'ubuntu-latest'
+        if: always() && matrix.os == 'ubuntu-latest' && steps.audit.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ steps.audit.outputs.sarif-file }}

@@ -42,6 +42,12 @@ inputs:
       Leave empty to disable the threshold gate.
     required: false
     default: ''
+  skip-download:
+    description: |
+      Skip binary download and use an oxidized-agentic-audit binary already present in PATH.
+      Intended for CI environments that build the binary locally before invoking this action.
+    required: false
+    default: 'false'
 
 outputs:
   sarif-file:
@@ -61,6 +67,7 @@ runs:
     # ── Step 1: Resolve version ───────────────────────────────────────────────
     - name: Resolve version
       id: resolve-version
+      if: inputs.skip-download != 'true'
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
@@ -81,6 +88,7 @@ runs:
     # ── Step 2: Detect OS and architecture ───────────────────────────────────
     - name: Detect platform
       id: detect-platform
+      if: inputs.skip-download != 'true'
       shell: bash
       run: |
         OS="${{ runner.os }}"
@@ -128,6 +136,7 @@ runs:
     # ── Step 3: Restore binary from cache ────────────────────────────────────
     - name: Restore binary cache
       id: cache-binary
+      if: inputs.skip-download != 'true'
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/oxidized-agentic-audit-bin
@@ -135,7 +144,7 @@ runs:
 
     # ── Step 4: Download and extract binary (cache miss only) ─────────────────
     - name: Download binary
-      if: steps.cache-binary.outputs.cache-hit != 'true'
+      if: inputs.skip-download != 'true' && steps.cache-binary.outputs.cache-hit != 'true'
       shell: bash
       run: |
         VERSION="${{ steps.resolve-version.outputs.version }}"
@@ -173,6 +182,7 @@ runs:
 
     # ── Step 5: Add binary to PATH ────────────────────────────────────────────
     - name: Add binary to PATH
+      if: inputs.skip-download != 'true'
       shell: bash
       run: |
         BIN_DIR="${{ runner.temp }}/oxidized-agentic-audit-bin"
