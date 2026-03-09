@@ -1,15 +1,15 @@
 //! Configuration loading and management.
 //!
 //! Provides types for the TOML-based configuration file and for finding-suppression
-//! rules stored in `.oxidized-skills-ignore` files.
+//! rules stored in `.oxidized-agentic-audit-ignore` files.
 //!
 //! # Configuration file
 //!
-//! The default configuration file is `oxidized-skills.toml` in the current
+//! The default configuration file is `oxidized-agentic-audit.toml` in the current
 //! working directory. Use [`Config::load`] to read it:
 //!
 //! ```rust,no_run
-//! use oxidized_skills::config::Config;
+//! use oxidized_agentic_audit::config::Config;
 //!
 //! let config = Config::load(None).expect("failed to load config");
 //! assert!(config.is_scanner_enabled("prompt"));
@@ -17,7 +17,7 @@
 //!
 //! # Suppression files
 //!
-//! Place a `.oxidized-skills-ignore` file inside a skill directory to suppress
+//! Place a `.oxidized-agentic-audit-ignore` file inside a skill directory to suppress
 //! specific findings. See [`Suppression`] for the format and [`load_suppressions`]
 //! for loading.
 
@@ -25,13 +25,13 @@ use std::path::Path;
 
 /// Main configuration for the audit system.
 ///
-/// Loaded from a TOML file (typically `oxidized-skills.toml`). All fields
+/// Loaded from a TOML file (typically `oxidized-agentic-audit.toml`). All fields
 /// carry sensible defaults so the config file can be omitted entirely.
 ///
 /// # Examples
 ///
 /// ```rust,no_run
-/// use oxidized_skills::config::Config;
+/// use oxidized_agentic_audit::config::Config;
 ///
 /// // Load from the default location or fall back to built-in defaults.
 /// let config = Config::load(None).unwrap();
@@ -192,7 +192,7 @@ impl Config {
     ///
     /// Resolution order:
     /// 1. If `path` is `Some`, load from that file (error if missing).
-    /// 2. If `path` is `None`, try `oxidized-skills.toml` in the current directory.
+    /// 2. If `path` is `None`, try `oxidized-agentic-audit.toml` in the current directory.
     /// 3. If that file does not exist either, return [`Config::default()`].
     ///
     /// The [`AllowlistConfig`] entries are normalized to lowercase after loading.
@@ -208,7 +208,7 @@ impl Config {
     ///
     /// ```rust,no_run
     /// use std::path::Path;
-    /// use oxidized_skills::config::Config;
+    /// use oxidized_agentic_audit::config::Config;
     ///
     /// // Explicit path
     /// let cfg = Config::load(Some(Path::new("my-config.toml")))?;
@@ -221,7 +221,10 @@ impl Config {
         let (config_path, is_explicit) = if let Some(p) = path {
             (p.to_path_buf(), true)
         } else {
-            (Path::new("oxidized-skills.toml").to_path_buf(), false)
+            (
+                Path::new("oxidized-agentic-audit.toml").to_path_buf(),
+                false,
+            )
         };
 
         match std::fs::read_to_string(&config_path) {
@@ -255,7 +258,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// use oxidized_skills::config::Config;
+    /// use oxidized_agentic_audit::config::Config;
     ///
     /// let config = Config::default();
     /// assert!(config.is_scanner_enabled("prompt"));
@@ -278,7 +281,7 @@ impl Config {
     }
 }
 
-/// Root structure of an `.oxidized-skills-ignore` TOML file.
+/// Root structure of an `.oxidized-agentic-audit-ignore` TOML file.
 ///
 /// # File format
 ///
@@ -296,7 +299,7 @@ pub struct SuppressionFile {
 
 /// A rule that silences a specific audit finding.
 ///
-/// Suppressions live in `.oxidized-skills-ignore` files at the root of a skill
+/// Suppressions live in `.oxidized-agentic-audit-ignore` files at the root of a skill
 /// directory and are loaded by [`load_suppressions`].
 ///
 /// # Matching
@@ -319,7 +322,7 @@ pub struct Suppression {
     pub ticket: Option<String>,
 }
 
-/// Loads suppression rules from a `.oxidized-skills-ignore` file.
+/// Loads suppression rules from a `.oxidized-agentic-audit-ignore` file.
 ///
 /// Looks for the file in `skill_path` and parses it as TOML. Returns an empty
 /// vector when the file is absent or cannot be parsed (a warning is printed to
@@ -329,7 +332,7 @@ pub struct Suppression {
 ///
 /// ```rust,no_run
 /// use std::path::Path;
-/// use oxidized_skills::config::load_suppressions;
+/// use oxidized_agentic_audit::config::load_suppressions;
 ///
 /// let suppressions = load_suppressions(Path::new("./my-skill"));
 /// for s in &suppressions {
@@ -337,7 +340,7 @@ pub struct Suppression {
 /// }
 /// ```
 pub fn load_suppressions(skill_path: &Path) -> Vec<Suppression> {
-    let ignore_path = skill_path.join(".oxidized-skills-ignore");
+    let ignore_path = skill_path.join(".oxidized-agentic-audit-ignore");
     if !ignore_path.exists() {
         return vec![];
     }
@@ -370,7 +373,7 @@ pub fn load_suppressions(skill_path: &Path) -> Vec<Suppression> {
             })
             .collect(),
         Err(e) => {
-            eprintln!("Warning: failed to parse .oxidized-skills-ignore: {e}");
+            eprintln!("Warning: failed to parse .oxidized-agentic-audit-ignore: {e}");
             vec![]
         }
     }

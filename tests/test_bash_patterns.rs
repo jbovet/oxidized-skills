@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use oxidized_skills::config::Config;
-use oxidized_skills::finding::Severity;
-use oxidized_skills::scanners::bash_patterns::BashPatternScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scanners::bash_patterns::BashPatternScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     let config = Config::default();
     let path = Path::new("tests/fixtures").join(fixture);
     BashPatternScanner.scan(&path, &config)
@@ -505,7 +505,7 @@ fn bash_pattern_rule_count_matches_expected() {
     //
     // Expected breakdown: A1-A4 (4) + B1-B5 (5) + C1-C2 (2) + D1-D3 (3)
     //                   + E1-E2 (2) + G1-G2 (2) + H1 (1) = 19
-    let rules = oxidized_skills::scanners::bash_patterns::rules();
+    let rules = oxidized_agentic_audit::scanners::bash_patterns::rules();
     assert_eq!(
         rules.len(),
         19,

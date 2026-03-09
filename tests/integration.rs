@@ -1,13 +1,13 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-fn oxidized_skills() -> Command {
-    assert_cmd::cargo::cargo_bin_cmd!("oxidized-skills")
+fn oxidized_agentic_audit() -> Command {
+    assert_cmd::cargo::cargo_bin_cmd!("oxidized-agentic-audit")
 }
 
 #[test]
 fn audit_clean_skill_passes() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/clean-skill"])
         .assert()
         .success()
@@ -16,7 +16,7 @@ fn audit_clean_skill_passes() {
 
 #[test]
 fn audit_dirty_skill_fails() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/dirty-skill"])
         .assert()
         .code(1)
@@ -25,7 +25,7 @@ fn audit_dirty_skill_fails() {
 
 #[test]
 fn audit_dirty_skill_json_format() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/dirty-skill", "--format", "json"])
         .assert()
         .code(1)
@@ -34,7 +34,7 @@ fn audit_dirty_skill_json_format() {
 
 #[test]
 fn audit_dirty_skill_sarif_format() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/dirty-skill", "--format", "sarif"])
         .assert()
         .code(1)
@@ -43,7 +43,7 @@ fn audit_dirty_skill_sarif_format() {
 
 #[test]
 fn audit_suppressed_skill() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/suppressed-skill"])
         .assert()
         .success();
@@ -51,7 +51,7 @@ fn audit_suppressed_skill() {
 
 #[test]
 fn audit_nonexistent_path_exits_2() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/does-not-exist"])
         .assert()
         .code(2);
@@ -59,7 +59,7 @@ fn audit_nonexistent_path_exits_2() {
 
 #[test]
 fn check_tools_succeeds() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["check-tools"])
         .assert()
         .success()
@@ -68,7 +68,7 @@ fn check_tools_succeeds() {
 
 #[test]
 fn list_rules_shows_rules() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["list-rules"])
         .assert()
         .success()
@@ -79,7 +79,7 @@ fn list_rules_shows_rules() {
 
 #[test]
 fn explain_known_rule() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["explain", "bash/CAT-A1"])
         .assert()
         .success()
@@ -89,7 +89,7 @@ fn explain_known_rule() {
 
 #[test]
 fn explain_unknown_rule_exits_2() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["explain", "nonexistent/rule"])
         .assert()
         .code(2)
@@ -105,7 +105,7 @@ fn strict_mode_fails_on_warnings() {
     std::fs::create_dir_all(&scripts_dir).unwrap();
     std::fs::write(scripts_dir.join("test.sh"), "#!/bin/bash\nsudo bash\n").unwrap();
 
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", dir.path().to_str().unwrap(), "--strict"])
         .assert()
         .code(1);
@@ -116,7 +116,7 @@ fn output_to_file() {
     let dir = tempfile::tempdir().unwrap();
     let output_file = dir.path().join("report.json");
 
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args([
             "audit",
             "tests/fixtures/dirty-skill",
@@ -140,7 +140,7 @@ fn output_to_file() {
 fn audit_collection_dir_shows_hint_and_exits_2() {
     // tests/fixtures/ has subdirs with SKILL.md but no top-level SKILL.md —
     // exactly the collection-directory pattern we want to detect.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures"])
         .assert()
         .code(2)
@@ -152,7 +152,7 @@ fn audit_collection_dir_shows_hint_and_exits_2() {
 
 #[test]
 fn audit_all_discovers_skills_and_prints_summary() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "tests/fixtures"])
         .assert()
         // At least one fixture skill fails — exit 1
@@ -175,7 +175,7 @@ fn audit_all_exits_0_when_all_pass() {
         .unwrap();
     }
 
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", dir.path().to_str().unwrap()])
         .assert()
         .success()
@@ -186,7 +186,7 @@ fn audit_all_exits_0_when_all_pass() {
 #[test]
 fn audit_all_empty_dir_exits_2() {
     let dir = tempfile::tempdir().unwrap();
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", dir.path().to_str().unwrap()])
         .assert()
         .code(2)
@@ -195,7 +195,7 @@ fn audit_all_empty_dir_exits_2() {
 
 #[test]
 fn audit_all_nonexistent_path_exits_2() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "tests/fixtures/does-not-exist"])
         .assert()
         .code(2);
@@ -206,7 +206,7 @@ fn audit_all_nonexistent_path_exits_2() {
 #[test]
 fn min_score_passes_when_clean_skill_meets_threshold() {
     // clean-skill scores 100 — any reasonable min-score should pass.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/clean-skill", "--min-score", "80"])
         .assert()
         .success();
@@ -215,7 +215,7 @@ fn min_score_passes_when_clean_skill_meets_threshold() {
 #[test]
 fn min_score_fails_when_score_below_threshold() {
     // dirty-skill scores 0 — threshold of 1 should fail.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/dirty-skill", "--min-score", "1"])
         .assert()
         .code(1)
@@ -224,7 +224,7 @@ fn min_score_fails_when_score_below_threshold() {
 
 #[test]
 fn min_score_error_message_shows_score_and_threshold() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/dirty-skill", "--min-score", "50"])
         .assert()
         .code(1)
@@ -234,7 +234,7 @@ fn min_score_error_message_shows_score_and_threshold() {
 #[test]
 fn min_score_zero_always_passes_clean_skill() {
     // --min-score 0 is a no-op; clean skill passes.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/clean-skill", "--min-score", "0"])
         .assert()
         .success();
@@ -243,7 +243,7 @@ fn min_score_zero_always_passes_clean_skill() {
 #[test]
 fn min_score_audit_all_fails_when_any_skill_below_threshold() {
     // fixtures/ contains dirty-skill (score 0) — threshold of 50 must fail.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "tests/fixtures", "--min-score", "50"])
         .assert()
         .code(1);
@@ -252,7 +252,7 @@ fn min_score_audit_all_fails_when_any_skill_below_threshold() {
 #[test]
 fn min_score_audit_all_shows_marker_in_summary() {
     // The collection summary should annotate skills below the threshold with [< N].
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "tests/fixtures", "--min-score", "50"])
         .assert()
         .code(1)
@@ -261,7 +261,7 @@ fn min_score_audit_all_shows_marker_in_summary() {
 
 #[test]
 fn min_score_audit_all_shows_below_min_count_in_footer() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "tests/fixtures", "--min-score", "50"])
         .assert()
         .code(1)
@@ -280,7 +280,7 @@ fn min_score_audit_all_passes_when_all_above_threshold() {
     }
 
     // Both skills are clean (score 100) — min-score 80 must succeed.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args([
             "audit-all",
             dir.path().to_str().unwrap(),
@@ -304,7 +304,7 @@ fn audit_shellcheck_skill_has_findings_when_tool_available() {
 
     if !sc_available {
         // Just verify the audit runs cleanly when tool is missing (skipped)
-        oxidized_skills()
+        oxidized_agentic_audit()
             .args([
                 "audit",
                 "tests/fixtures/shellcheck-skill",
@@ -317,7 +317,7 @@ fn audit_shellcheck_skill_has_findings_when_tool_available() {
     }
 
     // shellcheck is present — the fixture has intentional SC2086 violations
-    let output = oxidized_skills()
+    let output = oxidized_agentic_audit()
         .args([
             "audit",
             "tests/fixtures/shellcheck-skill",
@@ -360,7 +360,7 @@ fn audit_secrets_skill_detects_leaked_key_when_gitleaks_available() {
 
     if !gitleaks_available {
         // Just verify the audit runs (secrets scanner is skipped)
-        oxidized_skills()
+        oxidized_agentic_audit()
             .args(["audit", "tests/fixtures/secrets-skill", "--format", "json"])
             .assert()
             .success();
@@ -368,7 +368,7 @@ fn audit_secrets_skill_detects_leaked_key_when_gitleaks_available() {
     }
 
     // gitleaks present — fixture has fake AWS keys
-    let output = oxidized_skills()
+    let output = oxidized_agentic_audit()
         .args(["audit", "tests/fixtures/secrets-skill", "--format", "json"])
         .output()
         .unwrap();
@@ -397,7 +397,7 @@ fn audit_secrets_skill_detects_leaked_key_when_gitleaks_available() {
 
 #[test]
 fn audit_clean_agent_passes() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "--type", "agent", "tests/fixtures/clean-agent"])
         .assert()
         .success()
@@ -406,7 +406,7 @@ fn audit_clean_agent_passes() {
 
 #[test]
 fn audit_dirty_agent_fails() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "--type", "agent", "tests/fixtures/dirty-agent"])
         .assert()
         .code(1)
@@ -415,7 +415,7 @@ fn audit_dirty_agent_fails() {
 
 #[test]
 fn audit_dirty_agent_json_format() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args([
             "audit",
             "--type",
@@ -431,7 +431,7 @@ fn audit_dirty_agent_json_format() {
 
 #[test]
 fn audit_suppressed_agent_passes() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args([
             "audit",
             "--type",
@@ -445,7 +445,7 @@ fn audit_suppressed_agent_passes() {
 #[test]
 fn audit_agent_collection_dir_shows_hint_and_exits_2() {
     // tests/fixtures/ has agent subdirs but no top-level AGENT.md.
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit", "--type", "agent", "tests/fixtures"])
         .assert()
         .code(2)
@@ -459,7 +459,7 @@ fn audit_agent_collection_dir_shows_hint_and_exits_2() {
 
 #[test]
 fn audit_all_agents_discovers_agents_and_prints_summary() {
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "--type", "agent", "tests/fixtures"])
         .assert()
         // dirty-agent fails — exit 1
@@ -471,7 +471,7 @@ fn audit_all_agents_discovers_agents_and_prints_summary() {
 #[test]
 fn audit_all_agents_empty_dir_exits_2() {
     let dir = tempfile::tempdir().unwrap();
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "--type", "agent", dir.path().to_str().unwrap()])
         .assert()
         .code(2)
@@ -491,7 +491,7 @@ fn audit_all_agents_exits_0_when_all_pass() {
         .unwrap();
     }
 
-    oxidized_skills()
+    oxidized_agentic_audit()
         .args(["audit-all", "--type", "agent", dir.path().to_str().unwrap()])
         .assert()
         .success()

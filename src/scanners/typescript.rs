@@ -20,7 +20,7 @@
 //! # Suppression
 //!
 //! Individual lines can be suppressed with an inline `// audit:ignore` or
-//! `// oxidized-skills:ignore` trailing comment.  Category H findings are also
+//! `// oxidized-agentic-audit:ignore` trailing comment.  Category H findings are also
 //! automatically suppressed when every URL on the line resolves to a domain in
 //! [`Config::allowlist`](crate::config::AllowlistConfig::domains).
 
@@ -114,7 +114,7 @@ static PATTERNS: &[TsPattern] = &[
         id: "typescript/CAT-H1",
         severity: Severity::Info,
         message: "Outbound HTTP call detected — verify domain is in allowed list",
-        remediation: "Add the domain to oxidized-skills.toml [allowlist.domains]",
+        remediation: "Add the domain to oxidized-agentic-audit.toml [allowlist.domains]",
     },
 ];
 
@@ -131,9 +131,9 @@ static RE_URL_HOST: LazyLock<Regex> =
 
 /// Inline suppression marker for TypeScript/JavaScript files.
 ///
-/// Recognizes `// audit:ignore` and `// oxidized-skills:ignore` at end-of-line.
+/// Recognizes `// audit:ignore` and `// oxidized-agentic-audit:ignore` at end-of-line.
 static RE_TS_SUPPRESS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)//\s*(audit|oxidized-skills):ignore\s*$").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)//\s*(audit|oxidized-agentic-audit):ignore\s*$").unwrap());
 
 /// Pre-compiled `RegexSet` for TypeScript/JavaScript patterns.
 ///
@@ -182,7 +182,7 @@ static PATTERN_SET: LazyLock<RegexSet> = LazyLock::new(|| {
 /// # Examples
 ///
 /// ```
-/// use oxidized_skills::scanners::typescript::is_suppressed_ts;
+/// use oxidized_agentic_audit::scanners::typescript::is_suppressed_ts;
 ///
 /// assert!(is_suppressed_ts("fetch('https://evil.com') // audit:ignore"));
 /// assert!(!is_suppressed_ts("fetch('https://evil.com')"));

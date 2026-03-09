@@ -1,20 +1,20 @@
 <div align="center">
-  <img src="assets/logo.svg" alt="oxidized-skills logo" width="160"/>
-  <h1>oxidized-skills</h1>
+  <img src="assets/logo.svg" alt="oxidized-agentic-audit logo" width="160"/>
+  <h1>oxidized-agentic-audit</h1>
   <p><strong>Security auditing for AI agent skills and agents.</strong><br/>
   A CLI tool that scans skill and agent directories for dangerous patterns, prompt injection and supply chain risks.</p>
 
   <!-- Version & registry -->
-  <a href="https://crates.io/crates/oxidized-skills"><img src="https://img.shields.io/crates/v/oxidized-skills.svg?style=flat-square&logo=rust&color=CE422B" alt="Crates.io version"/></a>
-  <a href="https://crates.io/crates/oxidized-skills"><img src="https://img.shields.io/crates/d/oxidized-skills.svg?style=flat-square&color=8B5CF6" alt="Crates.io downloads"/></a>
+  <a href="https://crates.io/crates/oxidized-agentic-audit"><img src="https://img.shields.io/crates/v/oxidized-agentic-audit.svg?style=flat-square&logo=rust&color=CE422B" alt="Crates.io version"/></a>
+  <a href="https://crates.io/crates/oxidized-agentic-audit"><img src="https://img.shields.io/crates/d/oxidized-agentic-audit.svg?style=flat-square&color=8B5CF6" alt="Crates.io downloads"/></a>
   <!-- CI & quality -->
-  <a href="https://github.com/jbovet/oxidized-skills/actions"><img src="https://img.shields.io/github/actions/workflow/status/jbovet/oxidized-skills/ci.yml?branch=main&style=flat-square&logo=githubactions&label=CI" alt="CI status"/></a>
+  <a href="https://github.com/jbovet/oxidized-agentic-audit/actions"><img src="https://img.shields.io/github/actions/workflow/status/jbovet/oxidized-agentic-audit/ci.yml?branch=main&style=flat-square&logo=githubactions&label=CI" alt="CI status"/></a>
   <!-- MSRV & language -->
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust" alt="Minimum supported Rust version"/></a>
   <!-- License -->
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="MIT license"/></a>
   <!-- Docker -->
-  <a href="https://github.com/jbovet/oxidized-skills/pkgs/container/oxidized-skills"><img src="https://img.shields.io/badge/ghcr.io-oxidized--skills-0284C7?style=flat-square&logo=docker&logoColor=white" alt="GitHub Container Registry"/></a>
+  <a href="https://github.com/jbovet/oxidized-agentic-audit/pkgs/container/oxidized-agentic-audit"><img src="https://img.shields.io/badge/ghcr.io-oxidized--skills-0284C7?style=flat-square&logo=docker&logoColor=white" alt="GitHub Container Registry"/></a>
 </div>
 
 ---
@@ -32,7 +32,7 @@
 - **Collection directory support** — `audit-all` audits every skill and agent in a directory at once with a summary table; `audit` detects collection directories and shows helpful hints
 - **Security score** — Every audit produces a numeric score (0–100) and letter grade (A–F); shown inline in the terminal, included as top-level fields in JSON, and embedded in `run.properties` in SARIF
 - **Multiple output formats** — Pretty terminal, JSON, and SARIF 2.1.0 (compatible with GitHub Code Scanning)
-- **Suppression system** — Inline `# audit:ignore` (or `# oxidized-skills:ignore`) trailing comments and `.oxidized-skills-ignore` file with ticket tracking
+- **Suppression system** — Inline `# audit:ignore` (or `# oxidized-agentic-audit:ignore`) trailing comments and `.oxidized-agentic-audit-ignore` file with ticket tracking
 - **Configurable allowlists** — Registry allowlist enforced for `pkg/F3-registry`; domain allowlist enforced for `bash/CAT-H1` (outbound HTTP to approved domains is suppressed)
 - **Parallel scanning** — Uses rayon for concurrent scanning across all scanners
 - **Zero runtime dependencies** — Core scanners are pure Rust regex, no external tools required
@@ -40,20 +40,20 @@
 
 ## GitHub Action
 
-The `oxidized-skills` GitHub Action audits skill and agent directories in CI, produces a SARIF report, and optionally uploads it to GitHub Code Scanning.
+The `oxidized-agentic-audit` GitHub Action audits skill and agent directories in CI, produces a SARIF report, and optionally uploads it to GitHub Code Scanning.
 
 ### Inputs
 
 | Input | Description | Required | Default |
 |---|---|---|---|
 | `skills-path` | Path to a single skill/agent directory or a collection directory containing multiple skills and agents. | No | `.` |
-| `version` | Version of oxidized-skills to download (e.g. `v0.3.0`). Use `latest` to always fetch the newest release. | No | `latest` |
+| `version` | Version of oxidized-agentic-audit to download (e.g. `v0.3.0`). Use `latest` to always fetch the newest release. | No | `latest` |
 | `strict` | Treat warnings as errors. Exit code 1 on any warning. | No | `false` |
 | `fail-on-warnings` | Fail the action when warnings are present, even without errors. | No | `false` |
 | `min-score` | Minimum security score (0–100). Fails the action if any skill scores below this threshold. | No | `` |
 | `format` | Output format for the audit report. One of `pretty`, `json`, `sarif`. | No | `sarif` |
-| `sarif-output` | File path where the SARIF report will be written. | No | `oxidized-skills-report.sarif` |
-| `config` | Path to a custom `oxidized-skills.toml` configuration file. | No | `` |
+| `sarif-output` | File path where the SARIF report will be written. | No | `oxidized-agentic-audit-report.sarif` |
+| `config` | Path to a custom `oxidized-agentic-audit.toml` configuration file. | No | `` |
 
 ### Outputs
 
@@ -68,7 +68,7 @@ The `oxidized-skills` GitHub Action audits skill and agent directories in CI, pr
 #### Basic — run on push and PR
 
 ```yaml
-- uses: jbovet/oxidized-skills@v1
+- uses: jbovet/oxidized-agentic-audit@v1
   with:
     skills-path: ./skills
 ```
@@ -76,7 +76,7 @@ The `oxidized-skills` GitHub Action audits skill and agent directories in CI, pr
 #### Strict mode — block PR merge on any finding
 
 ```yaml
-- uses: jbovet/oxidized-skills@v1
+- uses: jbovet/oxidized-agentic-audit@v1
   with:
     skills-path: ./skills
     strict: 'true'
@@ -86,7 +86,7 @@ The `oxidized-skills` GitHub Action audits skill and agent directories in CI, pr
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: jbovet/oxidized-skills@v1
+- uses: jbovet/oxidized-agentic-audit@v1
   id: audit
   with:
     skills-path: ./skills
@@ -98,7 +98,7 @@ The `oxidized-skills` GitHub Action audits skill and agent directories in CI, pr
 
 Findings appear directly in the **Security → Code scanning** tab on GitHub:
 
-![GitHub Code Scanning results showing oxidized-skills findings](assets/github-code-scanning.png)
+![GitHub Code Scanning results showing oxidized-agentic-audit findings](assets/github-code-scanning.png)
 
 ---
 
@@ -106,30 +106,30 @@ Findings appear directly in the **Security → Code scanning** tab on GitHub:
 
 ### Install binary
 
-Download a pre-built binary for your platform from the [latest release](https://github.com/jbovet/oxidized-skills/releases):
+Download a pre-built binary for your platform from the [latest release](https://github.com/jbovet/oxidized-agentic-audit/releases):
 
 **Linux (x86_64):**
 ```bash
-curl -L https://github.com/jbovet/oxidized-skills/releases/download/v0.3.1/oxidized-skills-linux-x86_64.tar.gz | tar xz
-sudo mv oxidized-skills /usr/local/bin/
+curl -L https://github.com/jbovet/oxidized-agentic-audit/releases/download/v0.3.1/oxidized-agentic-audit-linux-x86_64.tar.gz | tar xz
+sudo mv oxidized-agentic-audit /usr/local/bin/
 ```
 
 **macOS (Intel x86_64):**
 ```bash
-curl -L https://github.com/jbovet/oxidized-skills/releases/download/v0.3.1/oxidized-skills-macos-x86_64.tar.gz | tar xz
-sudo mv oxidized-skills /usr/local/bin/
+curl -L https://github.com/jbovet/oxidized-agentic-audit/releases/download/v0.3.1/oxidized-agentic-audit-macos-x86_64.tar.gz | tar xz
+sudo mv oxidized-agentic-audit /usr/local/bin/
 ```
 
 **macOS (Apple Silicon / ARM64):**
 ```bash
-curl -L https://github.com/jbovet/oxidized-skills/releases/download/v0.3.1/oxidized-skills-macos-aarch64.tar.gz | tar xz
-sudo mv oxidized-skills /usr/local/bin/
+curl -L https://github.com/jbovet/oxidized-agentic-audit/releases/download/v0.3.1/oxidized-agentic-audit-macos-aarch64.tar.gz | tar xz
+sudo mv oxidized-agentic-audit /usr/local/bin/
 ```
 
 **Windows (x86_64):**
-Download `oxidized-skills-windows-x86_64.zip` from [releases](https://github.com/jbovet/oxidized-skills/releases), extract it, and add the folder to your `PATH`.
+Download `oxidized-agentic-audit-windows-x86_64.zip` from [releases](https://github.com/jbovet/oxidized-agentic-audit/releases), extract it, and add the folder to your `PATH`.
 
-> **Tip:** Replace `v0.3.1` with the latest version from [releases](https://github.com/jbovet/oxidized-skills/releases).
+> **Tip:** Replace `v0.3.1` with the latest version from [releases](https://github.com/jbovet/oxidized-agentic-audit/releases).
 
 ## Usage
 
@@ -137,44 +137,44 @@ Download `oxidized-skills-windows-x86_64.zip` from [releases](https://github.com
 
 ```bash
 # Audit a skill directory (default)
-oxidized-skills audit ./my-skill
+oxidized-agentic-audit audit ./my-skill
 
 # Audit an agent directory
-oxidized-skills audit ./my-agent --type agent
+oxidized-agentic-audit audit ./my-agent --type agent
 
 # JSON output
-oxidized-skills audit ./my-skill --format json
+oxidized-agentic-audit audit ./my-skill --format json
 
 # SARIF output (for GitHub Code Scanning)
-oxidized-skills audit ./my-skill --format sarif --output report.sarif
+oxidized-agentic-audit audit ./my-skill --format sarif --output report.sarif
 
 # Strict mode (warnings become errors)
-oxidized-skills audit ./my-skill --strict
+oxidized-agentic-audit audit ./my-skill --strict
 
 # Quality gate — fail if score drops below 80
-oxidized-skills audit ./my-skill --min-score 80
+oxidized-agentic-audit audit ./my-skill --min-score 80
 
 # Custom config
-oxidized-skills audit ./my-skill --config ./my-config.toml
+oxidized-agentic-audit audit ./my-skill --config ./my-config.toml
 ```
 
 ### Audit all skills or agents in a collection directory
 
 ```bash
 # Audits every subdirectory that contains a SKILL.md or AGENT.md, then prints a summary
-oxidized-skills audit-all ~/skills
+oxidized-agentic-audit audit-all ~/skills
 
 # Audit a collection of agents
-oxidized-skills audit-all ~/agents --type agent
+oxidized-agentic-audit audit-all ~/agents --type agent
 
 # JSON output per skill/agent
-oxidized-skills audit-all ~/skills --format json
+oxidized-agentic-audit audit-all ~/skills --format json
 
 # Strict mode across all skills/agents
-oxidized-skills audit-all ~/skills --strict
+oxidized-agentic-audit audit-all ~/skills --strict
 
 # Quality gate — fail if any skill/agent scores below 80
-oxidized-skills audit-all ~/skills --min-score 80
+oxidized-agentic-audit audit-all ~/skills --min-score 80
 ```
 
 If you accidentally run `audit` on a collection directory, the tool detects it and shows a helpful error with the correct commands to run.
@@ -185,25 +185,25 @@ By default, `audit` and `audit-all` scan for **skill** directories (looking for 
 
 ```bash
 # Default: audit skills
-oxidized-skills audit ./my-skill
-oxidized-skills audit-all ~/skills
+oxidized-agentic-audit audit ./my-skill
+oxidized-agentic-audit audit-all ~/skills
 
 # Audit agents explicitly
-oxidized-skills audit ./my-agent --type agent
-oxidized-skills audit-all ~/agents --type agent
+oxidized-agentic-audit audit ./my-agent --type agent
+oxidized-agentic-audit audit-all ~/agents --type agent
 ```
 
 ### Other commands
 
 ```bash
 # Check which external tools are available
-oxidized-skills check-tools
+oxidized-agentic-audit check-tools
 
 # List all built-in rules
-oxidized-skills list-rules
+oxidized-agentic-audit list-rules
 
 # Get details about a specific rule
-oxidized-skills explain bash/CAT-A1
+oxidized-agentic-audit explain bash/CAT-A1
 ```
 
 ### Exit codes
@@ -242,13 +242,13 @@ The frontmatter auditor validates both file types using the same 16 rules, check
 - `frontmatter`: `SKILL.md` and `AGENT.md` metadata quality and safety.
 
 ### Semgrep Optimization
-Semgrep can be slow because it fetches rules from the registry by default. `oxidized-skills` optimizes this by:
+Semgrep can be slow because it fetches rules from the registry by default. `oxidized-agentic-audit` optimizes this by:
 - Disabling anonymous metrics and version checks.
 - Looking for a local `semgrep.yml` or `.semgrep.yml` automatically.
 
 To use local rules and avoid network calls:
 1. Create a `semgrep.yml` with your rules.
-2. (Optional) Point to it in `oxidized-skills.toml`:
+2. (Optional) Point to it in `oxidized-agentic-audit.toml`:
 ```toml
 [semgrep]
 config = "my-rules.yml"
@@ -264,7 +264,7 @@ config = "my-rules.yml"
 | `secrets` | `gitleaks` | Hardcoded secrets and credentials | |
 | `semgrep` | `semgrep` | Static analysis rules | |
 
-Run `oxidized-skills check-tools` to see which external tools are available in your environment.
+Run `oxidized-agentic-audit check-tools` to see which external tools are available in your environment.
 
 ## Built-in Rules
 
@@ -353,7 +353,7 @@ Run `oxidized-skills check-tools` to see which external tools are available in y
 | `typescript/CAT-D1` | Error | Node.js `net` module raw socket — potential reverse shell or backdoor |
 | `typescript/CAT-H1` | Info | Outbound HTTP call detected — verify domain is in allowed list |
 
-> **Suppression:** Add `// audit:ignore` or `// oxidized-skills:ignore` as a trailing comment on any line. Category H findings are automatically suppressed when every URL on the line resolves to an allowlisted domain in `oxidized-skills.toml`.
+> **Suppression:** Add `// audit:ignore` or `// oxidized-agentic-audit:ignore` as a trailing comment on any line. Category H findings are automatically suppressed when every URL on the line resolves to an allowlisted domain in `oxidized-agentic-audit.toml`.
 
 ### Package Install (7 rules)
 
@@ -435,7 +435,7 @@ Result: FAILED  |  Score: 40/100 (D)  |  3 errors, 2 warnings, 0 info, 0 suppres
 
 ## Configuration
 
-### `oxidized-skills.toml`
+### `oxidized-agentic-audit.toml`
 
 Place in your project root or pass via `--config`:
 
@@ -471,7 +471,7 @@ package_install = true
 frontmatter = true
 ```
 
-### `.oxidized-skills-ignore`
+### `.oxidized-agentic-audit-ignore`
 
 Place in the skill directory to suppress specific findings:
 
@@ -492,11 +492,11 @@ ticket = "PROJ-5678"
 
 ### Inline suppression
 
-Add `# audit:ignore` or `# oxidized-skills:ignore` as a **trailing comment** on any line in a shell script:
+Add `# audit:ignore` or `# oxidized-agentic-audit:ignore` as a **trailing comment** on any line in a shell script:
 
 ```bash
 curl https://approved-source.example.com/tool.tar.gz -o /tmp/tool.tar.gz  # audit:ignore
-wget https://approved-source.example.com/tool.tar.gz                       # oxidized-skills:ignore
+wget https://approved-source.example.com/tool.tar.gz                       # oxidized-agentic-audit:ignore
 ```
 
 > **Note:** The marker must appear as a real trailing shell comment. A suppression string inside a quoted argument (e.g. `echo "# audit:ignore" | bash`) is **not** treated as a suppression.
@@ -516,11 +516,11 @@ just docker-dev-all ~/skills           # audit all skills
 Or with plain Docker:
 
 ```bash
-docker build -f Dockerfile.dev -t oxidized-skills:dev .
-docker run --rm -v ~/skills:/skills:ro oxidized-skills:dev audit-all /skills
+docker build -f Dockerfile.dev -t oxidized-agentic-audit:dev .
+docker run --rm -v ~/skills:/skills:ro oxidized-agentic-audit:dev audit-all /skills
 
 # Audit agents instead of skills
-docker run --rm -v ~/agents:/agents:ro oxidized-skills:dev audit-all --type agent /agents
+docker run --rm -v ~/agents:/agents:ro oxidized-agentic-audit:dev audit-all --type agent /agents
 ```
 
 ### Release images
@@ -548,48 +548,48 @@ Always mount the skill/agent directory (or collection) as a volume and pass the 
 On Apple Silicon or other ARM64 systems, you should specify the platform to run the published amd64 images:
 
 ```bash
-docker pull --platform linux/amd64 ghcr.io/jbovet/oxidized-skills:slim
+docker pull --platform linux/amd64 ghcr.io/jbovet/oxidized-agentic-audit:slim
 ```
 
 
 ```bash
 # ── slim image (core scanners only) ──────────────────────────────────────────
-docker pull ghcr.io/jbovet/oxidized-skills:slim
+docker pull ghcr.io/jbovet/oxidized-agentic-audit:slim
 
 # Audit a single skill directory
 docker run --rm \
   -v /path/to/skill:/skill:ro \
-  ghcr.io/jbovet/oxidized-skills:slim audit /skill
+  ghcr.io/jbovet/oxidized-agentic-audit:slim audit /skill
 
 # Audit a single agent directory
 docker run --rm \
   -v /path/to/agent:/agent:ro \
-  ghcr.io/jbovet/oxidized-skills:slim audit --type agent /agent
+  ghcr.io/jbovet/oxidized-agentic-audit:slim audit --type agent /agent
 
 # Audit all skills in a collection directory
 docker run --rm \
   -v ~/skills:/skills:ro \
-  ghcr.io/jbovet/oxidized-skills:slim audit-all /skills
+  ghcr.io/jbovet/oxidized-agentic-audit:slim audit-all /skills
 
 # Audit all agents in a collection directory
 docker run --rm \
   -v ~/agents:/agents:ro \
-  ghcr.io/jbovet/oxidized-skills:slim audit-all --type agent /agents
+  ghcr.io/jbovet/oxidized-agentic-audit:slim audit-all --type agent /agents
 
 # ── full image (shellcheck + gitleaks) ───────────────────────────────────────
-docker pull ghcr.io/jbovet/oxidized-skills:full
+docker pull ghcr.io/jbovet/oxidized-agentic-audit:full
 
 docker run --rm \
   -v /path/to/skill:/skill:ro \
-  ghcr.io/jbovet/oxidized-skills:full audit /skill
+  ghcr.io/jbovet/oxidized-agentic-audit:full audit /skill
 
 docker run --rm \
   -v ~/skills:/skills:ro \
-  ghcr.io/jbovet/oxidized-skills:full audit-all /skills
+  ghcr.io/jbovet/oxidized-agentic-audit:full audit-all /skills
 
 ```
 
-> **Common mistake:** `docker run oxidized-skills audit ~/skills` will fail with
+> **Common mistake:** `docker run oxidized-agentic-audit audit ~/skills` will fail with
 > `Error: path does not exist` — the container cannot see your home directory.
 > Always use `-v ~/skills:/skills:ro` and pass `/skills` as the argument.
 
@@ -599,7 +599,7 @@ docker run --rm \
 docker run --rm \
   -v /path/to/skill:/skill:ro \
   -v "$(pwd)":/out \
-  ghcr.io/jbovet/oxidized-skills:full \
+  ghcr.io/jbovet/oxidized-agentic-audit:full \
   audit /skill --format sarif --output /out/report.sarif
 ```
 
@@ -625,7 +625,7 @@ just docker-run-all ~/skills
   run: |
     docker run --rm \
       -v ${{ github.workspace }}/skills:/skills:ro \
-      ghcr.io/jbovet/oxidized-skills:full audit-all /skills
+      ghcr.io/jbovet/oxidized-agentic-audit:full audit-all /skills
 ```
 
 ## Development

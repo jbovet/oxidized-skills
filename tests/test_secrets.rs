@@ -1,12 +1,12 @@
 use std::path::Path;
 
-use oxidized_skills::config::Config;
-use oxidized_skills::finding::Severity;
-use oxidized_skills::scanners::secrets::SecretsScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scanners::secrets::SecretsScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 
 /// Helper: scan a fixture directory.
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     SecretsScanner.scan(
         Path::new("tests/fixtures").join(fixture).as_path(),
         &Config::default(),
@@ -29,7 +29,7 @@ fn secrets_scanner_description_mentions_gitleaks() {
 fn secrets_scanner_not_available_returns_skipped_by_audit() {
     let scanner = SecretsScanner;
     if !scanner.is_available() {
-        let result = oxidized_skills::finding::ScanResult::skipped(
+        let result = oxidized_agentic_audit::finding::ScanResult::skipped(
             scanner.name(),
             "gitleaks not found on PATH",
         );

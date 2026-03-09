@@ -1,8 +1,8 @@
-//! # oxidized-skills
+//! # oxidized-agentic-audit
 //!
 //! Security auditing framework for AI agent skills.
 //!
-//! `oxidized-skills` scans skill directories for security vulnerabilities including
+//! `oxidized-agentic-audit` scans skill directories for security vulnerabilities including
 //! prompt injection, dangerous bash patterns, exposed secrets, unsafe package
 //! installations, and more. It runs multiple scanners in parallel and produces
 //! reports in human-readable, JSON, or [SARIF] formats.
@@ -11,7 +11,7 @@
 //!
 //! ```rust,no_run
 //! use std::path::Path;
-//! use oxidized_skills::{audit::{self, AuditMode}, config::Config, output};
+//! use oxidized_agentic_audit::{audit::{self, AuditMode}, config::Config, output};
 //!
 //! let config = Config::load(None).expect("failed to load config");
 //! let report = audit::run_audit(Path::new("./my-skill"), &config, AuditMode::Skill);

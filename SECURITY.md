@@ -12,7 +12,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Please use [GitHub's private Security Advisory form](https://github.com/jbovet/oxidized-skills/security/advisories/new) to report vulnerabilities confidentially. This ensures the report is only visible to the maintainer until a fix is ready.
+Please use [GitHub's private Security Advisory form](https://github.com/jbovet/oxidized-agentic-audit/security/advisories/new) to report vulnerabilities confidentially. This ensures the report is only visible to the maintainer until a fix is ready.
 
 Include in your report:
 
@@ -31,10 +31,10 @@ Once a fix is available:
 
 ## Scope
 
-This policy covers the `oxidized-skills` binary and its built-in scanners. Third-party tools (`shellcheck`, `gitleaks`, `semgrep`) have their own security policies.
+This policy covers the `oxidized-agentic-audit` binary and its built-in scanners. Third-party tools (`shellcheck`, `gitleaks`, `semgrep`) have their own security policies.
 
 ## Out of Scope
 
-- Vulnerabilities in external tools wrapped by oxidized-skills
+- Vulnerabilities in external tools wrapped by oxidized-agentic-audit
 - Issues in skills being audited (those are findings, not vulnerabilities in this tool)
 - Denial of service via extremely large input files

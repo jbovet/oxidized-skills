@@ -1,4 +1,4 @@
-name: oxidized-skills
+name: oxidized-agentic-audit
 description: Security auditing for AI agent skills - scans files for prompt injection, dangerous bash patterns, and frontmatter violations
 author: jbovet
 
@@ -12,7 +12,7 @@ inputs:
     required: false
     default: '.'
   version:
-    description: Version of oxidized-skills to download (e.g. "v0.1.1"). Use "latest" to always fetch the newest release.
+    description: Version of oxidized-agentic-audit to download (e.g. "v0.1.1"). Use "latest" to always fetch the newest release.
     required: false
     default: 'latest'
   strict:
@@ -30,9 +30,9 @@ inputs:
   sarif-output:
     description: File path where the SARIF report will be written.
     required: false
-    default: 'oxidized-skills-report.sarif'
+    default: 'oxidized-agentic-audit-report.sarif'
   config:
-    description: Path to a custom oxidized-skills.toml configuration file.
+    description: Path to a custom oxidized-agentic-audit.toml configuration file.
     required: false
     default: ''
   min-score:
@@ -67,7 +67,7 @@ runs:
         if [ "$VERSION" = "latest" ]; then
           VERSION=$(curl -sSfL \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/jbovet/oxidized-skills/releases/latest" \
+            "https://api.github.com/repos/jbovet/oxidized-agentic-audit/releases/latest" \
             | grep '"tag_name"' \
             | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
           if [ -z "$VERSION" ]; then
@@ -107,15 +107,15 @@ runs:
 
         if [ "$os_slug" = "windows" ]; then
           ext="zip"
-          bin_name="oxidized-skills.exe"
+          bin_name="oxidized-agentic-audit.exe"
         else
           ext="tar.gz"
-          bin_name="oxidized-skills"
+          bin_name="oxidized-agentic-audit"
         fi
 
         VERSION="${{ steps.resolve-version.outputs.version }}"
-        archive_name="oxidized-skills-${os_slug}-${arch_slug}.${ext}"
-        cache_key="oxidized-skills-binary-${os_slug}-${arch_slug}-${VERSION}"
+        archive_name="oxidized-agentic-audit-${os_slug}-${arch_slug}.${ext}"
+        cache_key="oxidized-agentic-audit-binary-${os_slug}-${arch_slug}-${VERSION}"
 
         echo "os_slug=$os_slug"           >> "$GITHUB_OUTPUT"
         echo "arch_slug=$arch_slug"       >> "$GITHUB_OUTPUT"
@@ -130,7 +130,7 @@ runs:
       id: cache-binary
       uses: actions/cache@v4
       with:
-        path: ${{ runner.temp }}/oxidized-skills-bin
+        path: ${{ runner.temp }}/oxidized-agentic-audit-bin
         key: ${{ steps.detect-platform.outputs.cache_key }}
 
     # ── Step 4: Download and extract binary (cache miss only) ─────────────────
@@ -141,16 +141,16 @@ runs:
         VERSION="${{ steps.resolve-version.outputs.version }}"
         ARCHIVE="${{ steps.detect-platform.outputs.archive_name }}"
         EXT="${{ steps.detect-platform.outputs.ext }}"
-        BIN_DIR="${{ runner.temp }}/oxidized-skills-bin"
+        BIN_DIR="${{ runner.temp }}/oxidized-agentic-audit-bin"
 
         mkdir -p "$BIN_DIR"
 
-        DOWNLOAD_URL="https://github.com/jbovet/oxidized-skills/releases/download/${VERSION}/${ARCHIVE}"
+        DOWNLOAD_URL="https://github.com/jbovet/oxidized-agentic-audit/releases/download/${VERSION}/${ARCHIVE}"
         echo "Downloading: $DOWNLOAD_URL"
 
         if ! curl -sSfL "$DOWNLOAD_URL" -o "$BIN_DIR/$ARCHIVE"; then
           echo "Error: failed to download binary from $DOWNLOAD_URL"
-          echo "Check that version '${VERSION}' exists at https://github.com/jbovet/oxidized-skills/releases"
+          echo "Check that version '${VERSION}' exists at https://github.com/jbovet/oxidized-agentic-audit/releases"
           exit 1
         fi
 
@@ -175,7 +175,7 @@ runs:
     - name: Add binary to PATH
       shell: bash
       run: |
-        BIN_DIR="${{ runner.temp }}/oxidized-skills-bin"
+        BIN_DIR="${{ runner.temp }}/oxidized-agentic-audit-bin"
         BIN_NAME="${{ steps.detect-platform.outputs.bin_name }}"
         chmod +x "$BIN_DIR/$BIN_NAME" 2>/dev/null || true
         echo "$BIN_DIR" >> "$GITHUB_PATH"
@@ -234,13 +234,13 @@ runs:
         SKILLS_PATH="${{ inputs.skills-path }}"
         MODE="${{ steps.detect-mode.outputs.mode }}"
         FLAGS="${{ steps.build-flags.outputs.flags }}"
-        JSON_TMP="${{ runner.temp }}/oxidized-skills-results.json"
+        JSON_TMP="${{ runner.temp }}/oxidized-agentic-audit-results.json"
         AUDIT_EXIT=0
 
         if [ "$MODE" = "single" ]; then
-          oxidized-skills audit "$SKILLS_PATH" --format json --output "$JSON_TMP" $FLAGS || AUDIT_EXIT=$?
+          oxidized-agentic-audit audit "$SKILLS_PATH" --format json --output "$JSON_TMP" $FLAGS || AUDIT_EXIT=$?
         else
-          oxidized-skills audit-all "$SKILLS_PATH" --format json $FLAGS > "$JSON_TMP" || AUDIT_EXIT=$?
+          oxidized-agentic-audit audit-all "$SKILLS_PATH" --format json $FLAGS > "$JSON_TMP" || AUDIT_EXIT=$?
         fi
 
         echo "audit_exit=$AUDIT_EXIT" >> "$GITHUB_OUTPUT"
@@ -305,11 +305,11 @@ runs:
         SARIF_OUT="${{ inputs.sarif-output }}"
 
         if [ "$MODE" = "single" ]; then
-          oxidized-skills audit "$SKILLS_PATH" --format sarif --output "$SARIF_OUT" $FLAGS || true
+          oxidized-agentic-audit audit "$SKILLS_PATH" --format sarif --output "$SARIF_OUT" $FLAGS || true
         else
           # audit-all emits one SARIF document per skill to stdout.
           # Merge all runs[] arrays into a single valid SARIF document.
-          oxidized-skills audit-all "$SKILLS_PATH" --format sarif $FLAGS | python3 - "$SARIF_OUT" <<'PYEOF' || true
+          oxidized-agentic-audit audit-all "$SKILLS_PATH" --format sarif $FLAGS | python3 - "$SARIF_OUT" <<'PYEOF' || true
         import json, sys
 
         out_path = sys.argv[1]
@@ -407,7 +407,7 @@ runs:
         WARNINGS="${WARNINGS:-0}"
 
         {
-          echo "## oxidized-skills Audit Report"
+          echo "## oxidized-agentic-audit Audit Report"
           echo ""
           echo "| Field | Value |"
           echo "|---|---|"

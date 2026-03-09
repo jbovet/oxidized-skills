@@ -59,7 +59,7 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by opening a [GitHub Discussion](https://github.com/jbovet/oxidized-skills/discussions)
+reported by opening a [GitHub Discussion](https://github.com/jbovet/oxidized-agentic-audit/discussions)
 or contacting the maintainer directly via GitHub at [@jbovet](https://github.com/jbovet).
 
 All complaints will be reviewed and investigated promptly and fairly.

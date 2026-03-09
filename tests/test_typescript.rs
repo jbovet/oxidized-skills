@@ -1,22 +1,22 @@
 use std::path::Path;
 
-use oxidized_skills::config::Config;
-use oxidized_skills::finding::Severity;
-use oxidized_skills::scanners::typescript::TypeScriptScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scanners::typescript::TypeScriptScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     let config = Config::default();
     let path = Path::new("tests/fixtures").join(fixture);
     TypeScriptScanner.scan(&path, &config)
 }
 
 /// Write a single-file skill directory into `dir` and scan it.
-fn scan_ts_content(content: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_ts_content(content: &str) -> oxidized_agentic_audit::finding::ScanResult {
     let dir = tempfile::tempdir().unwrap();
     let scripts = dir.path().join("scripts");
     std::fs::create_dir_all(&scripts).unwrap();
@@ -457,8 +457,8 @@ fn inline_suppress_silences_finding() {
 }
 
 #[test]
-fn oxidized_skills_ignore_marker_silences_finding() {
-    let result = scan_ts_content("eval(userInput); // oxidized-skills:ignore\n");
+fn oxidized_agentic_audit_ignore_marker_silences_finding() {
+    let result = scan_ts_content("eval(userInput); // oxidized-agentic-audit:ignore\n");
     let a1: Vec<_> = result
         .findings
         .iter()
@@ -466,7 +466,7 @@ fn oxidized_skills_ignore_marker_silences_finding() {
         .collect();
     assert!(
         a1.is_empty(),
-        "Line with // oxidized-skills:ignore must not fire CAT-A1"
+        "Line with // oxidized-agentic-audit:ignore must not fire CAT-A1"
     );
 }
 
@@ -560,7 +560,7 @@ fn finding_includes_remediation() {
 
 #[test]
 fn rules_catalogue_is_non_empty() {
-    let rules = oxidized_skills::scanners::typescript::rules();
+    let rules = oxidized_agentic_audit::scanners::typescript::rules();
     assert!(
         !rules.is_empty(),
         "TypeScript scanner must expose at least one rule"
@@ -569,7 +569,7 @@ fn rules_catalogue_is_non_empty() {
 
 #[test]
 fn rules_catalogue_covers_all_categories() {
-    let rules = oxidized_skills::scanners::typescript::rules();
+    let rules = oxidized_agentic_audit::scanners::typescript::rules();
     let ids: Vec<&str> = rules.iter().map(|r| r.id).collect();
 
     for expected in &[
@@ -614,7 +614,7 @@ fn typescript_pattern_rule_count_matches_expected() {
     // scan() catches it, but this test also provides a visible count check.
     //
     // Expected: A1-A2 (2) + B1-B3 (3) + C1-C3 (3) + D1 (1) + H1 (1) = 10
-    let rules = oxidized_skills::scanners::typescript::rules();
+    let rules = oxidized_agentic_audit::scanners::typescript::rules();
     assert_eq!(
         rules.len(),
         10,

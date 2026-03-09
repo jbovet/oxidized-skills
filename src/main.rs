@@ -3,7 +3,7 @@ mod cli;
 use clap::Parser;
 use cli::{AuditType, Cli, Commands, RuleMode};
 use colored::Colorize;
-use oxidized_skills::{
+use oxidized_agentic_audit::{
     audit::{self, AuditMode},
     config,
     finding::AuditReport,
@@ -43,7 +43,7 @@ fn main() {
                 eprintln!();
                 eprintln!("To audit all {}s at once:", entity);
                 eprintln!(
-                    "  oxidized-skills audit-all --type {} {}",
+                    "  oxidized-agentic-audit audit-all --type {} {}",
                     entity,
                     path.display()
                 );
@@ -51,7 +51,7 @@ fn main() {
                 eprintln!("To audit a specific {}:", entity);
                 for child in &children {
                     eprintln!(
-                        "  oxidized-skills audit --type {} {}",
+                        "  oxidized-agentic-audit audit --type {} {}",
                         entity,
                         child.display()
                     );
@@ -249,7 +249,7 @@ fn main() {
                 None => {
                     eprintln!("Unknown rule: {rule_id}");
                     eprintln!(
-                        "Use 'oxidized-skills list-rules --mode all' to see all available rules."
+                        "Use 'oxidized-agentic-audit list-rules --mode all' to see all available rules."
                     );
                     std::process::exit(2);
                 }
@@ -298,7 +298,7 @@ fn format_collection_summary(
     min_score: Option<u8>,
     entity_label: &str,
 ) -> String {
-    use oxidized_skills::finding::AuditStatus;
+    use oxidized_agentic_audit::finding::AuditStatus;
 
     let mut out = String::new();
     let separator = "─".repeat(66);

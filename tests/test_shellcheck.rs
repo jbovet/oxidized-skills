@@ -1,12 +1,12 @@
 use std::path::Path;
 
-use oxidized_skills::config::Config;
-use oxidized_skills::finding::Severity;
-use oxidized_skills::scanners::shellcheck::ShellCheckScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scanners::shellcheck::ShellCheckScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 
 /// Helper: scan a fixture directory.
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     ShellCheckScanner.scan(
         Path::new("tests/fixtures").join(fixture).as_path(),
         &Config::default(),
@@ -14,7 +14,7 @@ fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
 }
 
 /// Helper: scan a temp directory containing a single shell script.
-fn scan_content(script: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_content(script: &str) -> oxidized_agentic_audit::finding::ScanResult {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("test.sh"), script).unwrap();
     ShellCheckScanner.scan(dir.path(), &Config::default())
@@ -26,8 +26,10 @@ fn scan_content(script: &str) -> oxidized_skills::finding::ScanResult {
 fn shellcheck_not_available_returns_skipped() {
     let scanner = ShellCheckScanner;
     if !scanner.is_available() {
-        let result =
-            oxidized_skills::finding::ScanResult::skipped(scanner.name(), "shellcheck not found");
+        let result = oxidized_agentic_audit::finding::ScanResult::skipped(
+            scanner.name(),
+            "shellcheck not found",
+        );
         assert!(result.skipped);
         assert!(result.findings.is_empty());
     } else {

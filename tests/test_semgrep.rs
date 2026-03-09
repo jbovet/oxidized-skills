@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use oxidized_skills::config::Config;
-use oxidized_skills::scanners::semgrep::SemgrepScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::scanners::semgrep::SemgrepScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 
 /// Helper: scan a fixture directory.
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     SemgrepScanner.scan(
         Path::new("tests/fixtures").join(fixture).as_path(),
         &Config::default(),
@@ -28,7 +28,7 @@ fn semgrep_scanner_description_mentions_semgrep() {
 fn semgrep_scanner_not_available_returns_skipped_by_audit() {
     let scanner = SemgrepScanner;
     if !scanner.is_available() {
-        let result = oxidized_skills::finding::ScanResult::skipped(
+        let result = oxidized_agentic_audit::finding::ScanResult::skipped(
             scanner.name(),
             "semgrep not found on PATH",
         );

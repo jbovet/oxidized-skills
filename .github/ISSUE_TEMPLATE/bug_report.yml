@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug or unexpected behaviour in oxidized-skills
+description: Report a bug or unexpected behaviour in oxidized-agentic-audit
 labels: ["bug"]
 body:
   - type: markdown
@@ -31,7 +31,7 @@ body:
       label: Steps to reproduce
       description: Step-by-step instructions to reproduce the issue.
       placeholder: |
-        1. Run `oxidized-skills audit ./my-skill`
+        1. Run `oxidized-agentic-audit audit ./my-skill`
         2. See error...
     validations:
       required: true
@@ -47,7 +47,7 @@ body:
   - type: textarea
     id: check_tools
     attributes:
-      label: Output of `oxidized-skills check-tools`
+      label: Output of `oxidized-agentic-audit check-tools`
       render: shell
     validations:
       required: false
@@ -55,8 +55,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: oxidized-skills version
-      description: Run `oxidized-skills --version`
+      label: oxidized-agentic-audit version
+      description: Run `oxidized-agentic-audit --version`
       placeholder: "0.1.0"
     validations:
       required: true

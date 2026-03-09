@@ -1,8 +1,8 @@
-use oxidized_skills::audit::AuditMode;
-use oxidized_skills::config::Config;
-use oxidized_skills::finding::Severity;
-use oxidized_skills::scanners::agent_frontmatter::AgentFrontmatterScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::audit::AuditMode;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scanners::agent_frontmatter::AgentFrontmatterScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 use std::path::Path;
 
 // ---------------------------------------------------------------------------
@@ -10,7 +10,7 @@ use std::path::Path;
 // ---------------------------------------------------------------------------
 
 /// Scan a named fixture directory with the AgentFrontmatterScanner alone.
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     AgentFrontmatterScanner.scan(
         Path::new("tests/fixtures").join(fixture).as_path(),
         &Config::default(),
@@ -18,8 +18,8 @@ fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
 }
 
 /// Run a full agent audit pipeline on a named fixture directory.
-fn audit_fixture(fixture: &str) -> oxidized_skills::finding::AuditReport {
-    oxidized_skills::audit::run_audit(
+fn audit_fixture(fixture: &str) -> oxidized_agentic_audit::finding::AuditReport {
+    oxidized_agentic_audit::audit::run_audit(
         Path::new("tests/fixtures").join(fixture).as_path(),
         &Config::default(),
         AuditMode::Agent,
@@ -52,7 +52,7 @@ fn agent_frontmatter_scanner_description_is_non_empty() {
 
 #[test]
 fn all_agent_rules_are_prefixed_agent_slash() {
-    let rules = oxidized_skills::scanners::all_agent_rules();
+    let rules = oxidized_agentic_audit::scanners::all_agent_rules();
     // Every agent_frontmatter rule must start with "agent/".
     for rule in rules.iter().filter(|r| r.scanner == "agent_frontmatter") {
         assert!(
@@ -65,7 +65,7 @@ fn all_agent_rules_are_prefixed_agent_slash() {
 
 #[test]
 fn all_agent_rules_have_remediation() {
-    let rules = oxidized_skills::scanners::all_agent_rules();
+    let rules = oxidized_agentic_audit::scanners::all_agent_rules();
     for rule in &rules {
         assert!(
             !rule.remediation.is_empty(),
@@ -409,7 +409,7 @@ fn agent_frontmatter_disabled_in_config_shows_as_skipped_in_report() {
     let mut config = Config::default();
     config.scanners.agent_frontmatter = false;
 
-    let report = oxidized_skills::audit::run_audit(
+    let report = oxidized_agentic_audit::audit::run_audit(
         Path::new("tests/fixtures/clean-agent"),
         &config,
         AuditMode::Agent,

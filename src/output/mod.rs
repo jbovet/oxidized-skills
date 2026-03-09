@@ -33,8 +33,8 @@ pub enum OutputFormat {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use oxidized_skills::output::{format_report, OutputFormat};
-/// # use oxidized_skills::finding::AuditReport;
+/// use oxidized_agentic_audit::output::{format_report, OutputFormat};
+/// # use oxidized_agentic_audit::finding::AuditReport;
 /// # fn example(report: &AuditReport) {
 /// let json = format_report(report, &OutputFormat::Json);
 /// println!("{json}");

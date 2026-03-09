@@ -104,7 +104,7 @@ pub fn format(report: &AuditReport) -> String {
         .collect();
 
     let driver = ToolComponent::builder()
-        .name("oxidized-skills")
+        .name("oxidized-agentic-audit")
         .version(env!("CARGO_PKG_VERSION").to_string())
         .rules(rules)
         .build();

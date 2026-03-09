@@ -11,9 +11,9 @@
 #   • semgrep    — static analysis (pip)
 #
 # Usage:
-#   docker build -f Dockerfile.dev -t oxidized-skills:dev .
-#   docker run --rm -v ~/skills:/skills:ro oxidized-skills:dev audit-all /skills
-#   docker run --rm -v /path/to/skill:/skill:ro   oxidized-skills:dev audit /skill
+#   docker build -f Dockerfile.dev -t oxidized-agentic-audit:dev .
+#   docker run --rm -v ~/skills:/skills:ro oxidized-agentic-audit:dev audit-all /skills
+#   docker run --rm -v /path/to/skill:/skill:ro   oxidized-agentic-audit:dev audit /skill
 #
 # NOTE: semgrep fetches rules from semgrep.dev on first run.  In
 # network-restricted environments it will time out after 30 s and be skipped
@@ -38,12 +38,12 @@ RUN mkdir -p src && \
     echo 'fn main() {}' > src/main.rs && \
     cargo build --release && \
     rm -rf src \
-           target/release/oxidized-skills \
-           target/release/deps/oxidized_skills*
+           target/release/oxidized-agentic-audit \
+           target/release/deps/oxidized_agentic_audit*
 
 COPY src ./src
 RUN cargo build --release && \
-    strip target/release/oxidized-skills
+    strip target/release/oxidized-agentic-audit
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim
@@ -64,9 +64,9 @@ RUN curl -fsSL \
 
 RUN pip install --no-cache-dir semgrep
 
-COPY --from=builder /build/target/release/oxidized-skills /usr/local/bin/oxidized-skills
+COPY --from=builder /build/target/release/oxidized-agentic-audit /usr/local/bin/oxidized-agentic-audit
 
 RUN groupadd -r oxidized && useradd -r -g oxidized -s /sbin/nologin oxidized
 USER oxidized
 
-ENTRYPOINT ["oxidized-skills"]
+ENTRYPOINT ["oxidized-agentic-audit"]

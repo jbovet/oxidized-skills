@@ -1,4 +1,4 @@
-# oxidized-skills justfile
+# oxidized-agentic-audit justfile
 # Install just: https://github.com/casey/just
 
 default: fmt lint test
@@ -49,19 +49,19 @@ explain rule_id:
 # Build the dev image (native arch, all tools — fastest local build on any machine)
 # Usage: just docker-dev-build
 docker-dev-build:
-    docker build -f Dockerfile.dev -t oxidized-skills:dev .
+    docker build -f Dockerfile.dev -t oxidized-agentic-audit:dev .
 
 # Build the slim image (~8 MB, core scanners only, scratch base)
 docker-build:
-    docker build -t oxidized-skills:slim .
+    docker build -t oxidized-agentic-audit:slim .
 
 # Build the full image (~50 MB, adds shellcheck + gitleaks, debian-slim base)
 docker-build-full:
-    docker build -f Dockerfile.full -t oxidized-skills:full .
+    docker build -f Dockerfile.full -t oxidized-agentic-audit:full .
 
 # Build all Docker images
 docker-build-all: docker-build docker-build-full
 
 # Print the on-disk size of all Docker images
 docker-size:
-    docker images --filter "reference=oxidized-skills" --format "table {{{{.Repository}}\t{{{{.Tag}}\t{{{{.Size}}"
+    docker images --filter "reference=oxidized-agentic-audit" --format "table {{{{.Repository}}\t{{{{.Tag}}\t{{{{.Size}}"

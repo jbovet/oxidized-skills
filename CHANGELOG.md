@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`pkg/F1-yarn` rule** — flags `yarn add`/`yarn install` without an explicit `--registry` flag.
 - **`pkg/F1-pnpm` rule** — flags `pnpm add`/`pnpm install` without an explicit `--registry` flag.
 - **`frontmatter/name-dir-mismatch` rule** — reports when the `name` field in `SKILL.md` does not match the skill's parent directory name, catching packaging mistakes before publication.
-- **Suppression path validation** — `.oxidized-skills-ignore` entries are now validated; paths that do not exist inside the skill directory emit a warning instead of silently being ignored.
+- **Suppression path validation** — `.oxidized-agentic-audit-ignore` entries are now validated; paths that do not exist inside the skill directory emit a warning instead of silently being ignored.
 - **Semgrep config validation** — the semgrep scanner now validates the resolved config path before invoking the tool, providing an actionable error when the config file is missing.
 - **Comprehensive regression test suite** — new test modules for frontmatter, bash patterns, TypeScript, and package-install scanners covering edge cases and suppress logic.
 
@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security score & letter grade** — every `audit` and `audit-all` report now includes a composite 0–100 security score and an A–F letter grade, computed from finding severity and count; visible in all output formats (pretty, JSON, SARIF).
 - **Per-scanner score & grade** — each `ScanResult` carries its own `scanner_score` and `scanner_grade` fields, computed on raw (pre-suppression) findings so suppressed rules don't artificially inflate the score.
 - **`--min-score` CI gate** — `audit` and `audit-all` accept `--min-score <N>` (0–100); exits with code 1 when the skill scores below the threshold, enabling score-based quality gates in CI pipelines.
-- **GitHub Action** (`jbovet/oxidized-skills`) — composite action that auto-downloads the correct binary for the runner platform, auto-detects single-skill vs collection mode, generates a SARIF report, and uploads results to GitHub Code Scanning.
+- **GitHub Action** (`jbovet/oxidized-agentic-audit`) — composite action that auto-downloads the correct binary for the runner platform, auto-detects single-skill vs collection mode, generates a SARIF report, and uploads results to GitHub Code Scanning.
 - **`min-score` input for the GitHub Action** — pass `min-score: 80` in the action config to fail PR checks when any audited skill scores below the threshold.
 
 ### Changed
@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Static analysis** — `semgrep` wrapper with 30-second timeout, gracefully skips when network is blocked or tool unavailable
 - **`audit-all` command** — audits every skill in a collection directory with a summary table
 - **Multiple output formats** — pretty terminal, JSON, and SARIF 2.1.0 (compatible with GitHub Code Scanning)
-- **Suppression system** — inline `# audit:ignore` trailing comments and `.oxidized-skills-ignore` file with ticket tracking
+- **Suppression system** — inline `# audit:ignore` trailing comments and `.oxidized-agentic-audit-ignore` file with ticket tracking
 - **Configurable allowlists** — registry allowlist for `pkg/F3-registry`; domain allowlist for `bash/CAT-H1`
 - **`list-rules` command** — lists all built-in rules with severity and description
 - **`explain` command** — shows details and remediation guidance for a specific rule
@@ -93,9 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker images** — slim (~8 MB, scratch base) and full (~245 MB, includes shellcheck + gitleaks + semgrep) variants published to GHCR
 - **CI/CD** — GitHub Actions workflows for CI (test + lint + fmt) and release (binaries + Docker images)
 
-[Unreleased]: https://github.com/jbovet/oxidized-skills/compare/v0.3.1...HEAD
-[0.3.1]: https://github.com/jbovet/oxidized-skills/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/jbovet/oxidized-skills/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/jbovet/oxidized-skills/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/jbovet/oxidized-skills/releases/tag/v0.1.1
-[0.1.0]: https://github.com/jbovet/oxidized-skills/releases/tag/v0.1.0
+[Unreleased]: https://github.com/jbovet/oxidized-agentic-audit/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/jbovet/oxidized-agentic-audit/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/jbovet/oxidized-agentic-audit/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/jbovet/oxidized-agentic-audit/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/jbovet/oxidized-agentic-audit/releases/tag/v0.1.1
+[0.1.0]: https://github.com/jbovet/oxidized-agentic-audit/releases/tag/v0.1.0

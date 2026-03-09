@@ -42,7 +42,7 @@ pub const EXTERNAL_TOOL_TIMEOUT: Duration = Duration::from_secs(60);
 /// # Implementing a custom scanner
 ///
 /// ```rust,ignore
-/// use oxidized_skills::scanners::Scanner;
+/// use oxidized_agentic_audit::scanners::Scanner;
 ///
 /// pub struct MyScanner;
 ///
@@ -119,7 +119,7 @@ pub fn agent_scanners() -> Vec<Box<dyn Scanner>> {
 ///
 /// ```rust,no_run
 /// use std::path::Path;
-/// use oxidized_skills::scanners::collect_files;
+/// use oxidized_agentic_audit::scanners::collect_files;
 ///
 /// let shell_files = collect_files(Path::new("./my-skill"), &["sh", "bash"]);
 /// ```
@@ -462,7 +462,7 @@ mod tests {
 ///
 /// Recognized markers (case-insensitive):
 /// - `# audit:ignore`
-/// - `# oxidized-skills:ignore`
+/// - `# oxidized-agentic-audit:ignore`
 ///
 /// The marker must appear as a trailing shell comment — it is **not**
 /// recognized when embedded inside a string literal.
@@ -470,7 +470,7 @@ mod tests {
 /// # Examples
 ///
 /// ```
-/// use oxidized_skills::scanners::is_suppressed_inline;
+/// use oxidized_agentic_audit::scanners::is_suppressed_inline;
 ///
 /// assert!(is_suppressed_inline("curl http://example.com # audit:ignore"));
 /// assert!(!is_suppressed_inline("echo '# audit:ignore' | bash"));
@@ -482,7 +482,7 @@ pub fn is_suppressed_inline(line: &str) -> bool {
     // The regex requires the marker to be preceded by optional whitespace and
     // to end at the line boundary (after optional trailing whitespace).
     static RE_INLINE_SUPPRESS: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"(?i)\s*#\s*(audit|oxidized-skills):ignore\s*$").unwrap()
+        regex::Regex::new(r"(?i)\s*#\s*(audit|oxidized-agentic-audit):ignore\s*$").unwrap()
     });
     RE_INLINE_SUPPRESS.is_match(line)
 }

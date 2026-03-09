@@ -2,36 +2,36 @@
 name: auditing-skills
 description: Scans AI agent skill directories for dangerous bash patterns, prompt injection, supply chain risks, and SKILL.md structure violations. Use when reviewing, validating, or security-auditing a skill before deployment — or when asked to check a skill for security issues, prompt injection, hardcoded secrets, or compliance with Anthropic's authoring guidelines.
 allowed-tools:
-  - Bash(oxidized-skills)
+  - Bash(oxidized-agentic-audit)
   - Read
   - Glob
 ---
 
 # Security Auditing for Agent Skills
 
-Run `oxidized-skills audit <path>` to scan a skill directory. The tool checks shell scripts, SKILL.md frontmatter, prompt injection vectors, and package install patterns.
+Run `oxidized-agentic-audit audit <path>` to scan a skill directory. The tool checks shell scripts, SKILL.md frontmatter, prompt injection vectors, and package install patterns.
 
 ## Quick start
 
 ```bash
 # Single skill
-oxidized-skills audit ./path/to/skill
+oxidized-agentic-audit audit ./path/to/skill
 
 # All skills in a collection directory
-oxidized-skills audit-all ./path/to/skills/
+oxidized-agentic-audit audit-all ./path/to/skills/
 ```
 
 ## Output formats
 
 ```bash
 # Human-readable terminal output (default)
-oxidized-skills audit ./skill
+oxidized-agentic-audit audit ./skill
 
 # Machine-readable JSON
-oxidized-skills audit ./skill --format json
+oxidized-agentic-audit audit ./skill --format json
 
 # SARIF 2.1.0 for GitHub Code Scanning
-oxidized-skills audit ./skill --format sarif --output report.sarif
+oxidized-agentic-audit audit ./skill --format sarif --output report.sarif
 ```
 
 ## Strict mode
@@ -39,7 +39,7 @@ oxidized-skills audit ./skill --format sarif --output report.sarif
 Treat warnings as errors (exit code 1 on any warning):
 
 ```bash
-oxidized-skills audit ./skill --strict
+oxidized-agentic-audit audit ./skill --strict
 ```
 
 ## Score threshold (CI gate)
@@ -47,27 +47,27 @@ oxidized-skills audit ./skill --strict
 Fail if the security score falls below a minimum (0–100):
 
 ```bash
-oxidized-skills audit ./skill --strict --min-score 80
-oxidized-skills audit-all ./skills/ --strict --min-score 80
+oxidized-agentic-audit audit ./skill --strict --min-score 80
+oxidized-agentic-audit audit-all ./skills/ --strict --min-score 80
 ```
 
 ## Custom configuration
 
 ```bash
-oxidized-skills audit ./skill --config ./oxidized-skills.toml
+oxidized-agentic-audit audit ./skill --config ./oxidized-agentic-audit.toml
 ```
 
 ## Utility commands
 
 ```bash
 # Check which external tools are available (shellcheck, gitleaks, semgrep)
-oxidized-skills check-tools
+oxidized-agentic-audit check-tools
 
 # List all built-in rules with severity and description
-oxidized-skills list-rules
+oxidized-agentic-audit list-rules
 
 # Explain a specific rule with remediation guidance
-oxidized-skills explain bash/CAT-A1
+oxidized-agentic-audit explain bash/CAT-A1
 ```
 
 ## Interpreting results
@@ -103,12 +103,12 @@ Audit progress:
 
 **Step 1: Check tools**
 ```bash
-oxidized-skills check-tools
+oxidized-agentic-audit check-tools
 ```
 
 **Step 2: Full strict audit**
 ```bash
-oxidized-skills audit ./skill --strict
+oxidized-agentic-audit audit ./skill --strict
 ```
 
 **Step 3: Interpret** — Exit code 0 = ready to deploy. Any other exit code: proceed to Step 4.
@@ -117,7 +117,7 @@ oxidized-skills audit ./skill --strict
 
 For each finding, get remediation guidance:
 ```bash
-oxidized-skills explain <rule-id>   # e.g. oxidized-skills explain bash/CAT-A1
+oxidized-agentic-audit explain <rule-id>   # e.g. oxidized-agentic-audit explain bash/CAT-A1
 ```
 
 **Step 5: Re-audit**
@@ -128,7 +128,7 @@ Repeat Step 2 until exit code is 0.
 
 When findings are reported:
 
-1. For each **Error**: run `oxidized-skills explain <rule-id>` to get remediation guidance, then fix the issue
+1. For each **Error**: run `oxidized-agentic-audit explain <rule-id>` to get remediation guidance, then fix the issue
 2. For each **Warning**: evaluate — fix before deployment, or suppress with a ticket if intentional
 3. Re-run the audit after each batch of fixes
 4. Only proceed when exit code is 0
@@ -138,7 +138,7 @@ When findings are reported:
 # Trailing inline comment on any shell line:
 some-command  # audit:ignore
 
-# Or use .oxidized-skills-ignore for file/line-scoped suppression with ticket tracking
+# Or use .oxidized-agentic-audit-ignore for file/line-scoped suppression with ticket tracking
 ```
 
 ## Sample output

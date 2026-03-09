@@ -1,21 +1,21 @@
-use oxidized_skills::audit::AuditMode;
-use oxidized_skills::config::Config;
-use oxidized_skills::output;
-use oxidized_skills::output::OutputFormat;
+use oxidized_agentic_audit::audit::AuditMode;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::output;
+use oxidized_agentic_audit::output::OutputFormat;
 use std::path::Path;
 
-fn get_dirty_report() -> oxidized_skills::finding::AuditReport {
+fn get_dirty_report() -> oxidized_agentic_audit::finding::AuditReport {
     let config = Config::default();
-    oxidized_skills::audit::run_audit(
+    oxidized_agentic_audit::audit::run_audit(
         Path::new("tests/fixtures/dirty-skill"),
         &config,
         AuditMode::Skill,
     )
 }
 
-fn get_clean_report() -> oxidized_skills::finding::AuditReport {
+fn get_clean_report() -> oxidized_agentic_audit::finding::AuditReport {
     let config = Config::default();
-    oxidized_skills::audit::run_audit(
+    oxidized_agentic_audit::audit::run_audit(
         Path::new("tests/fixtures/clean-skill"),
         &config,
         AuditMode::Skill,
@@ -52,7 +52,7 @@ fn sarif_output_is_valid() {
         serde_json::from_str(&sarif).expect("SARIF JSON should be valid");
     assert_eq!(parsed["version"], "2.1.0");
     assert!(parsed["runs"].is_array());
-    assert!(parsed["runs"][0]["tool"]["driver"]["name"] == "oxidized-skills");
+    assert!(parsed["runs"][0]["tool"]["driver"]["name"] == "oxidized-agentic-audit");
     assert!(parsed["runs"][0]["results"].is_array());
 }
 

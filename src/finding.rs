@@ -47,7 +47,7 @@ impl fmt::Display for Severity {
 /// # Suppression
 ///
 /// Findings can be suppressed either by inline comments (`# audit:ignore`) or
-/// by entries in a [`.oxidized-skills-ignore`](crate::config::Suppression) file.
+/// by entries in a [`.oxidized-agentic-audit-ignore`](crate::config::Suppression) file.
 /// When suppressed, [`suppressed`](Finding::suppressed) is `true` and the
 /// finding is moved to [`AuditReport::suppressed`] instead of
 /// [`AuditReport::findings`].
@@ -116,7 +116,7 @@ impl ScanResult {
     /// # Examples
     ///
     /// ```
-    /// use oxidized_skills::finding::ScanResult;
+    /// use oxidized_agentic_audit::finding::ScanResult;
     ///
     /// let result = ScanResult::skipped("semgrep", "semgrep not found on PATH");
     /// assert!(result.skipped);
@@ -144,7 +144,7 @@ impl ScanResult {
     /// # Examples
     ///
     /// ```
-    /// use oxidized_skills::finding::ScanResult;
+    /// use oxidized_agentic_audit::finding::ScanResult;
     ///
     /// let result = ScanResult::error("shellcheck", "Failed to run shellcheck".to_string(), 42);
     /// assert!(result.error.is_some());
@@ -175,7 +175,7 @@ impl ScanResult {
 ///
 /// ```rust,no_run
 /// use std::path::Path;
-/// use oxidized_skills::{audit::{self, AuditMode}, config::Config};
+/// use oxidized_agentic_audit::{audit::{self, AuditMode}, config::Config};
 ///
 /// let config = Config::load(None).unwrap();
 /// let report = audit::run_audit(Path::new("./my-skill"), &config, AuditMode::Skill);
@@ -230,7 +230,7 @@ impl AuditReport {
     ///
     /// * `skill`        — skill name (usually the directory basename).
     /// * `results`      — scanner results to aggregate.
-    /// * `suppressions` — rules loaded from `.oxidized-skills-ignore`.
+    /// * `suppressions` — rules loaded from `.oxidized-agentic-audit-ignore`.
     /// * `strict`       — when `true`, warnings are treated as failures.
     pub fn from_results(
         skill: &str,

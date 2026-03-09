@@ -4,13 +4,13 @@
 //! the binary crate (`src/main.rs`).
 
 use clap::{Parser, Subcommand, ValueEnum};
-use oxidized_skills::output::OutputFormat;
+use oxidized_agentic_audit::output::OutputFormat;
 use std::path::PathBuf;
 
 /// Security auditing for AI agent skills and agents.
 #[derive(Parser)]
 #[command(
-    name = "oxidized-skills",
+    name = "oxidized-agentic-audit",
     version,
     about = "Security auditing for AI agent skills and agents"
 )]

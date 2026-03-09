@@ -49,7 +49,7 @@ jobs:
       - name: Prepare assets
         shell: bash
         run: |
-          BIN_NAME="oxidized-skills"
+          BIN_NAME="oxidized-agentic-audit"
           TARGET_DIR="target/${{ matrix.platform.target }}/release"
           ASSET_NAME="${BIN_NAME}-${{ matrix.platform.os-name }}"
           DIST_DIR="$GITHUB_WORKSPACE/dist"
@@ -119,12 +119,12 @@ jobs:
   #                      + shellcheck + gitleaks + semgrep (~350 MB)
   #
   # Tags applied on a version tag push (e.g. v1.2.3):
-  #   ghcr.io/<owner>/oxidized-skills:1.2.3
-  #   ghcr.io/<owner>/oxidized-skills:1.2
-  #   ghcr.io/<owner>/oxidized-skills:slim
-  #   ghcr.io/<owner>/oxidized-skills:latest
-  #   ghcr.io/<owner>/oxidized-skills:1.2.3-full
-  #   ghcr.io/<owner>/oxidized-skills:full
+  #   ghcr.io/<owner>/oxidized-agentic-audit:1.2.3
+  #   ghcr.io/<owner>/oxidized-agentic-audit:1.2
+  #   ghcr.io/<owner>/oxidized-agentic-audit:slim
+  #   ghcr.io/<owner>/oxidized-agentic-audit:latest
+  #   ghcr.io/<owner>/oxidized-agentic-audit:1.2.3-full
+  #   ghcr.io/<owner>/oxidized-agentic-audit:full
 
   docker:
     name: Publish Docker images

@@ -19,14 +19,14 @@ RUN mkdir -p src && \
     echo 'fn main() {}' > src/main.rs && \
     cargo build --release && \
     rm -rf src \
-           target/release/oxidized-skills \
-           target/release/deps/oxidized_skills*
+           target/release/oxidized-agentic-audit \
+           target/release/deps/oxidized_agentic_audit*
 
 # ── real build ────────────────────────────────────────────────────────────────
 COPY src ./src
 RUN cargo build --release
 
-RUN strip target/release/oxidized-skills
+RUN strip target/release/oxidized-agentic-audit
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: Runtime (python:3.12-slim + semgrep + shellcheck + gitleaks)
@@ -67,10 +67,10 @@ RUN curl -fsSL \
 # `--no-cache-dir` avoids keeping the pip wheel cache in the image layer.
 RUN pip install --no-cache-dir semgrep
 
-COPY --from=builder /build/target/release/oxidized-skills /usr/local/bin/oxidized-skills
+COPY --from=builder /build/target/release/oxidized-agentic-audit /usr/local/bin/oxidized-agentic-audit
 
 # Run as a non-root user.
 RUN groupadd -r oxidized && useradd -r -g oxidized -s /sbin/nologin oxidized
 USER oxidized
 
-ENTRYPOINT ["oxidized-skills"]
+ENTRYPOINT ["oxidized-agentic-audit"]

@@ -36,14 +36,14 @@ jobs:
       - run: cargo build --release
       - name: Run against test fixtures
         run: |
-          ./target/release/oxidized-skills audit tests/fixtures/clean-skill
-          ./target/release/oxidized-skills audit tests/fixtures/dirty-skill --format json || true
-          ./target/release/oxidized-skills audit tests/fixtures/suppressed-skill --format json
-          ./target/release/oxidized-skills audit tests/fixtures/secrets-skill --format json || true
-          ./target/release/oxidized-skills audit tests/fixtures/shellcheck-skill --format json || true
-          ./target/release/oxidized-skills list-rules
-          ./target/release/oxidized-skills check-tools
-          ./target/release/oxidized-skills explain bash/CAT-H1
+          ./target/release/oxidized-agentic-audit audit tests/fixtures/clean-skill
+          ./target/release/oxidized-agentic-audit audit tests/fixtures/dirty-skill --format json || true
+          ./target/release/oxidized-agentic-audit audit tests/fixtures/suppressed-skill --format json
+          ./target/release/oxidized-agentic-audit audit tests/fixtures/secrets-skill --format json || true
+          ./target/release/oxidized-agentic-audit audit tests/fixtures/shellcheck-skill --format json || true
+          ./target/release/oxidized-agentic-audit list-rules
+          ./target/release/oxidized-agentic-audit check-tools
+          ./target/release/oxidized-agentic-audit explain bash/CAT-H1
 
   action-test:
     needs: [test, build]
@@ -64,7 +64,7 @@ jobs:
         continue-on-error: true
         with:
           skills-path: '.'
-          sarif-output: 'oxidized-skills-ci.sarif'
+          sarif-output: 'oxidized-agentic-audit-ci.sarif'
 
       - name: Show audit outputs
         if: always()
@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sarif-report-${{ matrix.os }}
-          path: oxidized-skills-ci.sarif
+          path: oxidized-agentic-audit-ci.sarif
           if-no-files-found: warn
 
       - name: Upload SARIF to GitHub Code Scanning
@@ -87,4 +87,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ steps.audit.outputs.sarif-file }}
-          category: oxidized-skills
+          category: oxidized-agentic-audit

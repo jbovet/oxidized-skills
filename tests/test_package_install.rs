@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use oxidized_skills::config::Config;
-use oxidized_skills::finding::Severity;
-use oxidized_skills::scanners::package_install::PackageInstallScanner;
-use oxidized_skills::scanners::Scanner;
+use oxidized_agentic_audit::config::Config;
+use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scanners::package_install::PackageInstallScanner;
+use oxidized_agentic_audit::scanners::Scanner;
 
-fn scan_fixture(fixture: &str) -> oxidized_skills::finding::ScanResult {
+fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     let config = Config::default();
     let path = Path::new("tests/fixtures").join(fixture);
     PackageInstallScanner.scan(&path, &config)

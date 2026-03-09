@@ -1,13 +1,13 @@
 [package]
-name = "oxidized-skills"
+name = "oxidized-agentic-audit"
 version = "0.3.1"
 edition = "2021"
 rust-version = "1.80"
 authors = ["jbovet"]
 description = "Security auditing for AI agent skills — scans skill directories for dangerous bash patterns, prompt injection, supply chain risks, secret leakage, and frontmatter quality issues"
 license = "MIT"
-repository = "https://github.com/jbovet/oxidized-skills"
-documentation = "https://docs.rs/oxidized-skills"
+repository = "https://github.com/jbovet/oxidized-agentic-audit"
+documentation = "https://docs.rs/oxidized-agentic-audit"
 readme = "README.md"
 keywords = ["security", "audit", "cli", "llm", "skills"]
 categories = ["command-line-utilities", "development-tools"]
@@ -25,7 +25,7 @@ exclude = [
 ]
 
 [[bin]]
-name = "oxidized-skills"
+name = "oxidized-agentic-audit"
 path = "src/main.rs"
 
 [dependencies]

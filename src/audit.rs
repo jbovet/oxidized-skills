@@ -39,7 +39,7 @@ pub enum AuditMode {
 ///
 /// ```rust,no_run
 /// use std::path::Path;
-/// use oxidized_skills::{audit::{self, AuditMode}, config::Config};
+/// use oxidized_agentic_audit::{audit::{self, AuditMode}, config::Config};
 ///
 /// let config = Config::load(None).unwrap();
 /// let report = audit::run_audit(Path::new("./my-skill"), &config, AuditMode::Skill);

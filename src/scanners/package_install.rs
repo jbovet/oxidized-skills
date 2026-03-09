@@ -23,7 +23,7 @@
 //! # Suppression
 //!
 //! Individual lines can be suppressed with an inline `# audit:ignore` or
-//! `# oxidized-skills:ignore` trailing comment. Registry URLs are also
+//! `# oxidized-agentic-audit:ignore` trailing comment. Registry URLs are also
 //! checked against [`Config::allowlist`](crate::config::AllowlistConfig::registries).
 
 use crate::config::Config;
@@ -276,7 +276,7 @@ impl Scanner for PackageInstallScanner {
                                 "pkg/F3-registry",
                                 Severity::Warning,
                                 &format!("Registry URL not in allowlist: {}", url_str),
-                                "Add registry to oxidized-skills.toml [allowlist.registries] or use an approved registry",
+                                "Add registry to oxidized-agentic-audit.toml [allowlist.registries] or use an approved registry",
                                 file,
                                 line_num,
                                 line,
@@ -354,7 +354,7 @@ pub fn rules() -> Vec<RuleInfo> {
             severity: "warning",
             scanner: "package_install",
             message: "Registry URL not in allowlist",
-            remediation: "Add registry to oxidized-skills.toml [allowlist.registries] or use an approved registry",
+            remediation: "Add registry to oxidized-agentic-audit.toml [allowlist.registries] or use an approved registry",
         },
     ]
 }

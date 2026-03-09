@@ -1,5 +1,5 @@
-# oxidized-skills configuration
-# Copy this file to oxidized-skills.toml and customize as needed.
+# oxidized-agentic-audit configuration
+# Copy this file to oxidized-agentic-audit.toml and customize as needed.
 
 [allowlist]
 # Registries that are approved for package installs

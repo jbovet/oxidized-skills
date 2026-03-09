@@ -12,7 +12,7 @@ body:
     attributes:
       label: Problem to solve
       description: What problem or gap does this feature address?
-      placeholder: "When auditing skills that use X, oxidized-skills does not detect Y..."
+      placeholder: "When auditing skills that use X, oxidized-agentic-audit does not detect Y..."
     validations:
       required: true
 

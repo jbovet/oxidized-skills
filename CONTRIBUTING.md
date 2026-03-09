@@ -1,4 +1,4 @@
-# Contributing to oxidized-skills
+# Contributing to oxidized-agentic-audit
 
 Thank you for your interest in contributing! This document covers how to report bugs, propose features, and submit pull requests.
 
@@ -21,9 +21,9 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 Before opening an issue, check if it already exists. When filing a bug:
 
 1. Use the **Bug Report** issue template
-2. Include the output of `oxidized-skills check-tools`
+2. Include the output of `oxidized-agentic-audit check-tools`
 3. Include the command you ran and the full output
-4. Mention your OS and `oxidized-skills --version`
+4. Mention your OS and `oxidized-agentic-audit --version`
 
 For security vulnerabilities, see [SECURITY.md](SECURITY.md) — do **not** open a public issue.
 
@@ -40,8 +40,8 @@ Open a **Feature Request** issue. Describe:
 Requires Rust (stable) and [`just`](https://github.com/casey/just).
 
 ```bash
-git clone https://github.com/jbovet/oxidized-skills
-cd oxidized-skills
+git clone https://github.com/jbovet/oxidized-agentic-audit
+cd oxidized-agentic-audit
 
 # Install the pre-commit hook
 just install-hooks

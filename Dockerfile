@@ -41,8 +41,8 @@ RUN MUSL_TARGET="$(cat /musl-target)" && \
     echo 'fn main() {}' > src/main.rs && \
     cargo build --release --target "$MUSL_TARGET" && \
     rm -rf src \
-           "target/${MUSL_TARGET}/release/oxidized-skills" \
-           "target/${MUSL_TARGET}/release/deps/oxidized_skills"*
+           "target/${MUSL_TARGET}/release/oxidized-agentic-audit" \
+           "target/${MUSL_TARGET}/release/deps/oxidized_agentic_audit"*
 
 # ── real build ────────────────────────────────────────────────────────────────
 COPY src ./src
@@ -51,8 +51,8 @@ RUN MUSL_TARGET="$(cat /musl-target)" && \
 
 # Strip debug symbols — reduces binary from ~12 MB to ~5–7 MB.
 RUN MUSL_TARGET="$(cat /musl-target)" && \
-    strip "target/${MUSL_TARGET}/release/oxidized-skills" && \
-    cp "target/${MUSL_TARGET}/release/oxidized-skills" /oxidized-skills
+    strip "target/${MUSL_TARGET}/release/oxidized-agentic-audit" && \
+    cp "target/${MUSL_TARGET}/release/oxidized-agentic-audit" /oxidized-agentic-audit
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: Runtime (scratch — zero OS layer)
@@ -72,6 +72,6 @@ FROM scratch
 # TLS roots — required if any future code path makes outbound HTTPS calls.
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-COPY --from=builder /oxidized-skills /oxidized-skills
+COPY --from=builder /oxidized-agentic-audit /oxidized-agentic-audit
 
-ENTRYPOINT ["/oxidized-skills"]
+ENTRYPOINT ["/oxidized-agentic-audit"]

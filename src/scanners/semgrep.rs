@@ -73,7 +73,7 @@ impl Scanner for SemgrepScanner {
         cmd.arg("scan").arg("--json").arg("--quiet");
 
         // 1. Rule configuration resolution:
-        //    - Use explicit path from oxidized-skills.toml if provided.
+        //    - Use explicit path from oxidized-agentic-audit.toml if provided.
         //    - Fall back to local semgrep.yml or .semgrep.yml if they exist.
         //    - Otherwise semgrep will use its default (usually 'auto' registry rules).
         if let Some(ref custom_config) = config.semgrep.config {

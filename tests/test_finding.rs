@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use oxidized_skills::config::Suppression;
-use oxidized_skills::finding::{AuditReport, Finding, ScanResult, SecurityGrade, Severity};
+use oxidized_agentic_audit::config::Suppression;
+use oxidized_agentic_audit::finding::{AuditReport, Finding, ScanResult, SecurityGrade, Severity};
 
 // ---------------------------------------------------------------------------
 // Helpers

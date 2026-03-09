@@ -22,7 +22,7 @@
 //! # Suppression
 //!
 //! Individual lines can be suppressed with an inline `# audit:ignore` or
-//! `# oxidized-skills:ignore` trailing comment. Category H findings are also
+//! `# oxidized-agentic-audit:ignore` trailing comment. Category H findings are also
 //! suppressed when every URL on the line resolves to a domain in
 //! [`Config::allowlist`](crate::config::AllowlistConfig::domains).
 
@@ -217,7 +217,7 @@ static PATTERNS: &[BashPattern] = &[
         id: "bash/CAT-H1",
         severity: Severity::Info,
         message: "Outbound HTTP call detected — verify domain is in allowed list",
-        remediation: "Ensure domain is in oxidized-skills.toml [allowlist.domains]",
+        remediation: "Ensure domain is in oxidized-agentic-audit.toml [allowlist.domains]",
     },
 ];
 
