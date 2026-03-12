@@ -1,13 +1,14 @@
 mod cli;
 
 use clap::Parser;
-use cli::{AuditType, Cli, Commands, RuleMode};
+use cli::{Cli, Commands, RuleMode, ScanType};
 use colored::Colorize;
 use oxidized_agentic_audit::{
-    audit::{self, AuditMode},
     config,
-    finding::AuditReport,
-    output, scanners,
+    finding::ScanReport,
+    output,
+    scan::{self, ScanMode},
+    scanners,
 };
 
 fn main() {
@@ -16,14 +17,14 @@ fn main() {
     match cli.command {
         Commands::Scan {
             path,
-            audit_type,
+            scan_type,
             format,
             output: output_path,
             strict,
             config: config_path,
             min_score,
         } => {
-            let (mode, sentinel, entity, article) = audit_type_meta(audit_type);
+            let (mode, sentinel, entity, article) = scan_type_meta(scan_type);
             if !path.exists() {
                 eprintln!("Error: path does not exist: {}", path.display());
                 std::process::exit(2);
@@ -68,7 +69,7 @@ fn main() {
                 config.strict.enabled = true;
             }
 
-            let report = audit::run_audit(&path, &config, mode);
+            let report = scan::run_scan(&path, &config, mode);
             let formatted = output::format_report(&report, &format);
 
             if let Some(out_path) = output_path {
@@ -96,7 +97,7 @@ fn main() {
 
         Commands::ScanAll {
             path,
-            audit_type,
+            scan_type,
             format,
             strict,
             config: config_path,
@@ -107,7 +108,7 @@ fn main() {
                 std::process::exit(2);
             }
 
-            let (mode, sentinel, entity, _article) = audit_type_meta(audit_type);
+            let (mode, sentinel, entity, _article) = scan_type_meta(scan_type);
 
             let dirs = find_artifact_dirs(&path, sentinel);
             if dirs.is_empty() {
@@ -129,9 +130,9 @@ fn main() {
                 config.strict.enabled = true;
             }
 
-            let mut reports: Vec<AuditReport> = Vec::new();
+            let mut reports: Vec<ScanReport> = Vec::new();
             for dir in &dirs {
-                let report = audit::run_audit(dir, &config, mode);
+                let report = scan::run_scan(dir, &config, mode);
                 let formatted = output::format_report(&report, &format);
                 print!("{formatted}");
                 reports.push(report);
@@ -258,14 +259,14 @@ fn main() {
     }
 }
 
-/// Maps an [`AuditType`] to its audit mode, sentinel filename, entity label, and article.
+/// Maps a [`ScanType`] to its scan mode, sentinel filename, entity label, and article.
 ///
-/// Returns `(AuditMode, sentinel, entity_label, article)` where `article` is
+/// Returns `(ScanMode, sentinel, entity_label, article)` where `article` is
 /// the grammatically correct indefinite article ("a" or "an") for the entity.
-fn audit_type_meta(audit_type: AuditType) -> (AuditMode, &'static str, &'static str, &'static str) {
-    match audit_type {
-        AuditType::Skill => (AuditMode::Skill, "SKILL.md", "skill", "a"),
-        AuditType::Agent => (AuditMode::Agent, "AGENT.md", "agent", "an"),
+fn scan_type_meta(scan_type: ScanType) -> (ScanMode, &'static str, &'static str, &'static str) {
+    match scan_type {
+        ScanType::Skill => (ScanMode::Skill, "SKILL.md", "skill", "a"),
+        ScanType::Agent => (ScanMode::Agent, "AGENT.md", "agent", "an"),
     }
 }
 
@@ -294,11 +295,11 @@ fn find_artifact_dirs(path: &std::path::Path, sentinel: &str) -> Vec<std::path::
 /// with a red `[< N]` marker so failures are immediately visible.
 fn format_collection_summary(
     collection_path: &std::path::Path,
-    reports: &[AuditReport],
+    reports: &[ScanReport],
     min_score: Option<u8>,
     entity_label: &str,
 ) -> String {
-    use oxidized_agentic_audit::finding::AuditStatus;
+    use oxidized_agentic_audit::finding::ScanStatus;
 
     let mut out = String::new();
     let separator = "─".repeat(66);
@@ -324,21 +325,21 @@ fn format_collection_summary(
 
     for report in reports {
         let (icon, status_str) = match report.status {
-            AuditStatus::Passed => {
+            ScanStatus::Passed => {
                 n_passed += 1;
                 (
                     "✓".green().to_string(),
                     "PASSED ".green().bold().to_string(),
                 )
             }
-            AuditStatus::Warning => {
+            ScanStatus::Warning => {
                 n_warned += 1;
                 (
                     "⚠".yellow().to_string(),
                     "WARNING".yellow().bold().to_string(),
                 )
             }
-            AuditStatus::Failed => {
+            ScanStatus::Failed => {
                 n_failed += 1;
                 ("✗".red().to_string(), "FAILED ".red().bold().to_string())
             }

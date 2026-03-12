@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/logo.svg" alt="oxidized-agentic-audit logo" width="160"/>
   <h1>oxidized-agentic-audit</h1>
-  <p><strong>Security auditing for AI agent skills and agents.</strong><br/>
+  <p><strong>Security scanning for AI agent skills and agents.</strong><br/>
   A CLI tool that scans skill and agent directories for dangerous patterns, prompt injection and supply chain risks.</p>
 
   <!-- Version & registry -->
@@ -24,13 +24,13 @@
 - **Bash dangerous pattern scanner** — 19 regex rules across 8 categories (RCE, credential exfiltration, destructive ops, reverse shells, privilege escalation, unsafe variable expansion, outbound network)
 - **TypeScript/JavaScript security scanner** — 10 pure-Rust regex rules across 5 categories: arbitrary code execution (`eval`, `new Function`), shell execution via `child_process`, credential file access (SSH keys, AWS, kubeconfig), raw socket reverse shells, and unallowlisted outbound HTTP calls; scans `*.ts`, `*.tsx`, `*.mts`, `*.js`, `*.mjs`
 - **Prompt injection scanner** — 19 patterns detecting instruction override, role manipulation, jailbreak attempts, data exfiltration, code injection, system prompt extraction, delimiter injection, fictional framing, and priority override; automatically skips benign boilerplate files (LICENSE, CHANGELOG, NOTICE, AUTHORS, etc.)
-- **Frontmatter auditor** — 16 rules validating `SKILL.md` and `AGENT.md` structure: missing file, reserved brand names, XML injection in fields, name format and directory-name match, field length limits, vague names, body length, Windows paths, third-person description, trigger context, time-sensitive content, and unscoped `Bash` in `allowed-tools`
-- **Package install auditor** — Detects `npm install`, `bun add`, `yarn add`, `pnpm add`, `pip install` without explicit registry, unpinned `@latest` versions, and unapproved registries (7 rules)
+- **Frontmatter scanner** — 16 rules validating `SKILL.md` and `AGENT.md` structure: missing file, reserved brand names, XML injection in fields, name format and directory-name match, field length limits, vague names, body length, Windows paths, third-person description, trigger context, time-sensitive content, and unscoped `Bash` in `allowed-tools`
+- **Package install scanner** — Detects `npm install`, `bun add`, `yarn add`, `pnpm add`, `pip install` without explicit registry, unpinned `@latest` versions, and unapproved registries (7 rules)
 - **Shell script linting** — shellcheck wrapper, automatically skipped when tool is not installed
 - **Secret scanning** — gitleaks wrapper, automatically skipped when tool is not installed
 - **Static analysis** — semgrep wrapper with 30-second timeout (gracefully skips when network is blocked or tool is unavailable)
 - **Collection directory support** — `scan-all` scans every skill and agent in a directory at once with a summary table; `scan` detects collection directories and shows helpful hints
-- **Security score** — Every audit produces a numeric score (0–100) and letter grade (A–F); shown inline in the terminal, included as top-level fields in JSON, and embedded in `run.properties` in SARIF
+- **Security score** — Every scan produces a numeric score (0–100) and letter grade (A–F); shown inline in the terminal, included as top-level fields in JSON, and embedded in `run.properties` in SARIF
 - **Multiple output formats** — Pretty terminal, JSON, and SARIF 2.1.0 (compatible with GitHub Code Scanning)
 - **Suppression system** — Inline `# audit:ignore` (or `# oxidized-agentic-audit:ignore`) trailing comments and `.oxidized-agentic-audit-ignore` file with ticket tracking
 - **Configurable allowlists** — Registry allowlist enforced for `pkg/F3-registry`; domain allowlist enforced for `bash/CAT-H1` (outbound HTTP to approved domains is suppressed)
@@ -40,7 +40,7 @@
 
 ## GitHub Action
 
-The `oxidized-agentic-audit` GitHub Action audits skill and agent directories in CI, produces a SARIF report, and optionally uploads it to GitHub Code Scanning.
+The `oxidized-agentic-audit` GitHub Action scans skill and agent directories in CI, produces a SARIF report, and optionally uploads it to GitHub Code Scanning.
 
 ### Inputs
 
@@ -52,7 +52,7 @@ The `oxidized-agentic-audit` GitHub Action audits skill and agent directories in
 | `strict` | Treat warnings as errors. Exit code 1 on any warning. | No | `false` |
 | `fail-on-warnings` | Fail the action when warnings are present, even without errors. | No | `false` |
 | `min-score` | Minimum security score (0–100). Fails the action if any skill/agent scores below this threshold. | No | `` |
-| `format` | Output format for the audit report. One of `pretty`, `json`, `sarif`. | No | `sarif` |
+| `format` | Output format for the scan report. One of `pretty`, `json`, `sarif`. | No | `sarif` |
 | `sarif-output` | File path where the SARIF report will be written. | No | `oxidized-agentic-audit-report.sarif` |
 | `config` | Path to a custom `oxidized-agentic-audit.toml` configuration file. | No | `` |
 | `skip-download` | Use a binary already in `PATH`; skip release download. For CI jobs that build locally. | No | `false` |
@@ -67,7 +67,7 @@ The `oxidized-agentic-audit` GitHub Action audits skill and agent directories in
 
 ### Usage examples
 
-#### Audit skills (default)
+#### Scan skills (default)
 
 ```yaml
 - uses: jbovet/oxidized-agentic-audit@v0.4.0
@@ -75,7 +75,7 @@ The `oxidized-agentic-audit` GitHub Action audits skill and agent directories in
     path: ./skills
 ```
 
-#### Audit agents
+#### Scan agents
 
 ```yaml
 - uses: jbovet/oxidized-agentic-audit@v0.4.0
@@ -221,8 +221,8 @@ oxidized-agentic-audit explain bash/CAT-A1
 
 | Code | Meaning |
 |------|---------|
-| 0 | Audit passed (all skills/agents passed) |
-| 1 | Audit failed (errors found, or warnings in strict mode) |
+| 0 | Scan passed (all skills/agents passed) |
+| 1 | Scan failed (errors found, or warnings in strict mode) |
 | 2 | Runtime error (bad config, missing path, collection dir passed to `scan`, etc.) |
 
 ## Skills and Agents
@@ -233,14 +233,14 @@ oxidized-agentic-audit explain bash/CAT-A1
 
 **Agents** are autonomous AI systems that use their own decision-making and planning. Each agent is a directory containing an `AGENT.md` file (similar to `SKILL.md` for skills) that describes the agent's purpose and configuration.
 
-Both skills and agents are audited using the same security scanners — the scanning rules for dangerous patterns, prompt injection, and supply chain risks apply to both artifact types.
+Both skills and agents are scanned using the same security scanners — the scanning rules for dangerous patterns, prompt injection, and supply chain risks apply to both artifact types.
 
 ### Frontmatter files
 
 - **Skills** use `SKILL.md` — see [SKILL.md format](SKILL.md)
 - **Agents** use `AGENT.md` — see [agents/agent.md](agents/agent.md) for an example
 
-The frontmatter auditor validates both file types using the same 16 rules, checking for reserved brand names, XML injection, field length limits, and other quality/safety issues.
+The frontmatter scanner validates both file types using the same 16 rules, checking for reserved brand names, XML injection, field length limits, and other quality/safety issues.
 
 ## Scanners
 
@@ -250,8 +250,8 @@ The frontmatter auditor validates both file types using the same 16 rules, check
 - `typescript`: Dangerous TypeScript/JavaScript patterns (code execution, shell access, credential reads, raw sockets, outbound HTTP).
 - `prompt`: Prompt injection patterns in `SKILL.md` and `AGENT.md`.
 - `package_install`: Unsafe package manager usage (pinned versions, registries).
-- `frontmatter`: `SKILL.md` metadata quality and safety (skill audits).
-- `agent_frontmatter`: `AGENT.md` metadata quality and safety — agent-specific rules including bare tool access, unconstrained MCP servers, missing model, and system-prompt injection (agent audits).
+- `frontmatter`: `SKILL.md` metadata quality and safety (skill scans).
+- `agent_frontmatter`: `AGENT.md` metadata quality and safety — agent-specific rules including bare tool access, unconstrained MCP servers, missing model, and system-prompt injection (agent scans).
 
 ### Semgrep Optimization
 Semgrep can be slow because it fetches rules from the registry by default. `oxidized-agentic-audit` optimizes this by:
@@ -352,7 +352,7 @@ Run `oxidized-agentic-audit check-tools` to see which external tools are availab
 
 ### Agent Frontmatter (19 rules)
 
-Applies when auditing with `--type agent`. Validates `AGENT.md` structure and agentic security properties.
+Applies when scanning with `--type agent`. Validates `AGENT.md` structure and agentic security properties.
 
 | Rule | Severity | Description |
 |------|----------|-------------|
@@ -407,7 +407,7 @@ Applies when auditing with `--type agent`. Validates `AGENT.md` structure and ag
 
 ## Security Score
 
-Every audit computes a numeric security score (0–100) and a letter grade (A–F) based on the active (non-suppressed) findings.
+Every scan computes a numeric security score (0–100) and a letter grade (A–F) based on the active (non-suppressed) findings.
 
 ### Scoring model
 
@@ -660,7 +660,7 @@ just docker-run-all ~/skills
 ### Use in CI (GitHub Actions)
 
 ```yaml
-- name: Audit skills
+- name: Scan skills
   run: |
     docker run --rm \
       -v ${{ github.workspace }}/skills:/skills:ro \

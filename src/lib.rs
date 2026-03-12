@@ -11,13 +11,13 @@
 //!
 //! ```rust,no_run
 //! use std::path::Path;
-//! use oxidized_agentic_audit::{audit::{self, AuditMode}, config::Config, output};
+//! use oxidized_agentic_audit::{scan::{self, ScanMode}, config::Config, output};
 //!
 //! let config = Config::load(None).expect("failed to load config");
-//! let report = audit::run_audit(Path::new("./my-skill"), &config, AuditMode::Skill);
+//! let report = scan::run_scan(Path::new("./my-skill"), &config, ScanMode::Skill);
 //!
 //! if report.passed {
-//!     println!("Audit passed!");
+//!     println!("Scan passed!");
 //! } else {
 //!     let text = output::format_report(&report, &output::OutputFormat::Pretty);
 //!     print!("{text}");
@@ -31,8 +31,8 @@
 //! 1. **[`config`]** — load and validate configuration from TOML files.
 //! 2. **[`scanners`]** — pluggable [`scanners::Scanner`] trait with built-in
 //!    implementations (prompt, bash patterns, secrets, shellcheck, semgrep, …).
-//! 3. **[`audit`]** — orchestrate scanners in parallel and collect results.
-//! 4. **[`finding`]** — core data types ([`finding::Finding`], [`finding::AuditReport`]).
+//! 3. **[`scan`]** — orchestrate scanners in parallel and collect results.
+//! 4. **[`finding`]** — core data types ([`finding::Finding`], [`finding::ScanReport`]).
 //! 5. **[`output`]** — format reports as pretty text, JSON, or SARIF.
 //!
 //! ## Scanners
@@ -53,8 +53,8 @@
 //! [gitleaks]: https://github.com/gitleaks/gitleaks
 //! [semgrep]: https://semgrep.dev/
 
-pub mod audit;
 pub mod config;
 pub mod finding;
 pub mod output;
+pub mod scan;
 pub mod scanners;

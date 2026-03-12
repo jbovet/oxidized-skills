@@ -4,10 +4,10 @@
 //! statuses, individual findings with source locations, suppressed items, and
 //! a one-line summary.
 
-use crate::finding::{AuditReport, AuditStatus, Severity};
+use crate::finding::{ScanReport, ScanStatus, Severity};
 use colored::Colorize;
 
-/// Formats an [`AuditReport`] as human-readable, ANSI-colored text.
+/// Formats a [`ScanReport`] as human-readable, ANSI-colored text.
 ///
 /// Sections rendered (in order):
 /// 1. **Header** — skill name and timestamp.
@@ -15,18 +15,18 @@ use colored::Colorize;
 /// 3. **Findings** — active findings with severity, rule, location, and snippet.
 /// 4. **Suppressed** — suppressed findings with reasons.
 /// 5. **Summary** — overall status and severity counts.
-pub fn format(report: &AuditReport) -> String {
+pub fn format(report: &ScanReport) -> String {
     let mut out = String::new();
 
     // Header
     out.push_str(&format!(
         "\n{}\n",
-        format!("  Skill Audit: {}  ", report.skill)
+        format!("  Skill Scan: {}  ", report.skill)
             .bold()
             .on_blue()
             .white()
     ));
-    out.push_str(&format!("  Timestamp: {}\n\n", report.audit_timestamp));
+    out.push_str(&format!("  Timestamp: {}\n\n", report.scan_timestamp));
 
     // Scanner results summary
     out.push_str(&format!("{}\n", "Scanners".bold().underline()));
@@ -153,9 +153,9 @@ pub fn format(report: &AuditReport) -> String {
 
     // Summary
     let status_str = match report.status {
-        AuditStatus::Passed => "PASSED".green().bold().to_string(),
-        AuditStatus::Warning => "WARNING".yellow().bold().to_string(),
-        AuditStatus::Failed => "FAILED".red().bold().to_string(),
+        ScanStatus::Passed => "PASSED".green().bold().to_string(),
+        ScanStatus::Warning => "WARNING".yellow().bold().to_string(),
+        ScanStatus::Failed => "FAILED".red().bold().to_string(),
     };
 
     let score_str = {

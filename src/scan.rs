@@ -1,28 +1,28 @@
-//! Audit orchestration.
+//! Scan orchestration.
 //!
-//! The [`run_audit`] function is the main entry-point for running a full
-//! security audit on a skill or agent directory. It selects the appropriate
-//! scanner set based on [`AuditMode`], executes them in parallel via [rayon],
+//! The [`run_scan`] function is the main entry-point for running a full
+//! security scan on a skill or agent directory. It selects the appropriate
+//! scanner set based on [`ScanMode`], executes them in parallel via [rayon],
 //! collects results, applies suppression rules, and produces a final
-//! [`AuditReport`].
+//! [`ScanReport`].
 
 use crate::config::{self, Config};
-use crate::finding::{AuditReport, ScanResult};
+use crate::finding::{ScanReport, ScanResult};
 use crate::scanners;
 use colored::Colorize;
 use rayon::prelude::*;
 use std::path::Path;
 
-/// Selects which scanner set and report context to use for an audit.
+/// Selects which scanner set and report context to use for a scan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AuditMode {
-    /// Audit a skill directory (looks for `SKILL.md`, uses [`skill_scanners`](scanners::skill_scanners)).
+pub enum ScanMode {
+    /// Scan a skill directory (looks for `SKILL.md`, uses [`skill_scanners`](scanners::skill_scanners)).
     Skill,
-    /// Audit an agent directory (looks for `AGENT.md`, uses [`agent_scanners`](scanners::agent_scanners)).
+    /// Scan an agent directory (looks for `AGENT.md`, uses [`agent_scanners`](scanners::agent_scanners)).
     Agent,
 }
 
-/// Runs a complete security audit on a skill or agent directory.
+/// Runs a complete security scan on a skill or agent directory.
 ///
 /// # Pipeline
 ///
@@ -33,23 +33,23 @@ pub enum AuditMode {
 ///    Scanners whose external tool is missing are recorded as *skipped*.
 /// 4. Loads [suppression rules](crate::config::load_suppressions) from the
 ///    target directory.
-/// 5. Assembles the final [`AuditReport`].
+/// 5. Assembles the final [`ScanReport`].
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// use std::path::Path;
-/// use oxidized_agentic_audit::{audit::{self, AuditMode}, config::Config};
+/// use oxidized_agentic_audit::{scan::{self, ScanMode}, config::Config};
 ///
 /// let config = Config::load(None).unwrap();
-/// let report = audit::run_audit(Path::new("./my-skill"), &config, AuditMode::Skill);
+/// let report = scan::run_scan(Path::new("./my-skill"), &config, ScanMode::Skill);
 ///
 /// std::process::exit(if report.passed { 0 } else { 1 });
 /// ```
-pub fn run_audit(path: &Path, config: &Config, mode: AuditMode) -> AuditReport {
+pub fn run_scan(path: &Path, config: &Config, mode: ScanMode) -> ScanReport {
     let all = match mode {
-        AuditMode::Skill => scanners::skill_scanners(),
-        AuditMode::Agent => scanners::agent_scanners(),
+        ScanMode::Skill => scanners::skill_scanners(),
+        ScanMode::Agent => scanners::agent_scanners(),
     };
 
     let n_active = all
@@ -104,7 +104,7 @@ pub fn run_audit(path: &Path, config: &Config, mode: AuditMode) -> AuditReport {
     let suppressions = config::load_suppressions(path);
     let skill_name = extract_skill_name(path);
 
-    AuditReport::from_results(&skill_name, results, &suppressions, config.strict.enabled)
+    ScanReport::from_results(&skill_name, results, &suppressions, config.strict.enabled)
 }
 
 /// Extracts the skill name from a directory path.

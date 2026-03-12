@@ -1,11 +1,11 @@
-//! Core data types for audit findings and reports.
+//! Core data types for scan findings and reports.
 //!
-//! This module contains the primary output types of the audit pipeline:
+//! This module contains the primary output types of the scan pipeline:
 //!
 //! - [`Finding`] — a single security issue detected by a scanner.
 //! - [`ScanResult`] — aggregated output from one scanner run.
-//! - [`AuditReport`] — the final report combining all scanners.
-//! - [`Severity`], [`AuditStatus`], [`RiskLevel`], [`SecurityGrade`] — classification enums.
+//! - [`ScanReport`] — the final report combining all scanners.
+//! - [`Severity`], [`ScanStatus`], [`RiskLevel`], [`SecurityGrade`] — classification enums.
 
 use std::fmt;
 use std::path::PathBuf;
@@ -46,11 +46,11 @@ impl fmt::Display for Severity {
 ///
 /// # Suppression
 ///
-/// Findings can be suppressed either by inline comments (`# audit:ignore`) or
+/// Findings can be suppressed either by inline comments (`# scan:ignore`) or
 /// by entries in a [`.oxidized-agentic-audit-ignore`](crate::config::Suppression) file.
 /// When suppressed, [`suppressed`](Finding::suppressed) is `true` and the
-/// finding is moved to [`AuditReport::suppressed`] instead of
-/// [`AuditReport::findings`].
+/// finding is moved to [`ScanReport::suppressed`] instead of
+/// [`ScanReport::findings`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Finding {
     /// Unique rule identifier (e.g., `"bash/CAT-A-001"`, `"prompt/P01"`).
@@ -165,33 +165,33 @@ impl ScanResult {
     }
 }
 
-/// Complete audit report for a single skill.
+/// Complete scan report for a single skill.
 ///
-/// Created by [`AuditReport::from_results`] after all scanners have run.
-/// This is the main output of [`audit::run_audit`](crate::audit::run_audit)
+/// Created by [`ScanReport::from_results`] after all scanners have run.
+/// This is the main output of [`scan::run_scan`](crate::scan::run_scan)
 /// and is consumed by the [`output`](crate::output) formatters.
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// use std::path::Path;
-/// use oxidized_agentic_audit::{audit::{self, AuditMode}, config::Config};
+/// use oxidized_agentic_audit::{scan::{self, ScanMode}, config::Config};
 ///
 /// let config = Config::load(None).unwrap();
-/// let report = audit::run_audit(Path::new("./my-skill"), &config, AuditMode::Skill);
+/// let report = scan::run_scan(Path::new("./my-skill"), &config, ScanMode::Skill);
 ///
 /// println!("status: {:?}, errors: {}", report.status, report.error_count());
 /// ```
 #[derive(Debug, serde::Serialize)]
-pub struct AuditReport {
-    /// Name of the audited skill (derived from the directory name).
+pub struct ScanReport {
+    /// Name of the scanned skill (derived from the directory name).
     pub skill: String,
     /// Optional skill version (reserved for future use).
     pub version: Option<String>,
-    /// RFC 3339 timestamp of when the audit ran.
-    pub audit_timestamp: String,
-    /// Overall audit outcome.
-    pub status: AuditStatus,
+    /// RFC 3339 timestamp of when the scan ran.
+    pub scan_timestamp: String,
+    /// Overall scan outcome.
+    pub status: ScanStatus,
     /// Overall risk assessment.
     pub risk_level: RiskLevel,
     /// Numeric security score from 0 (worst) to 100 (best).
@@ -214,17 +214,17 @@ pub struct AuditReport {
     pub findings: Vec<Finding>,
     /// Suppressed findings (kept for transparency in reports).
     pub suppressed: Vec<Finding>,
-    /// Convenience flag: `true` when `status` is [`AuditStatus::Passed`].
+    /// Convenience flag: `true` when `status` is [`ScanStatus::Passed`].
     pub passed: bool,
 }
 
-impl AuditReport {
-    /// Builds an [`AuditReport`] from raw scanner results.
+impl ScanReport {
+    /// Builds a [`ScanReport`] from raw scanner results.
     ///
     /// This constructor:
     /// 1. Separates suppressed findings from active ones.
     /// 2. Applies file-level suppression rules.
-    /// 3. Computes [`AuditStatus`] and [`RiskLevel`].
+    /// 3. Computes [`ScanStatus`] and [`RiskLevel`].
     ///
     /// # Arguments
     ///
@@ -276,13 +276,13 @@ impl AuditReport {
         }
 
         let (status, risk_level, security_score, security_grade) =
-            compute_audit_metrics(&active, strict);
-        let passed = matches!(status, AuditStatus::Passed);
+            compute_scan_metrics(&active, strict);
+        let passed = matches!(status, ScanStatus::Passed);
 
-        AuditReport {
+        ScanReport {
             skill: skill.to_string(),
             version: None,
-            audit_timestamp: chrono::Utc::now().to_rfc3339(),
+            scan_timestamp: chrono::Utc::now().to_rfc3339(),
             status,
             risk_level,
             security_score,
@@ -336,13 +336,13 @@ impl AuditReport {
     }
 }
 
-/// Overall outcome of an audit.
+/// Overall outcome of a scan.
 ///
 /// The status is derived from the active (non-suppressed) findings and the
 /// [`StrictConfig`](crate::config::StrictConfig) setting.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum AuditStatus {
+pub enum ScanStatus {
     /// No errors or warnings (or all were suppressed).
     Passed,
     /// Warnings present, but no errors (and strict mode is off).
@@ -370,7 +370,7 @@ pub enum RiskLevel {
 
 /// Letter-grade summary of a skill's security posture.
 ///
-/// Derived from [`AuditReport::security_score`]:
+/// Derived from [`ScanReport::security_score`]:
 ///
 /// | Score   | Grade |
 /// |---------|-------|
@@ -402,12 +402,12 @@ impl fmt::Display for SecurityGrade {
 
 /// Computes status, risk level, security score, and grade in a single pass.
 ///
-/// Used by [`AuditReport::from_results`] to derive all aggregate metrics
+/// Used by [`ScanReport::from_results`] to derive all aggregate metrics
 /// without iterating the findings list three times.
-fn compute_audit_metrics(
+fn compute_scan_metrics(
     findings: &[Finding],
     strict: bool,
-) -> (AuditStatus, RiskLevel, u8, SecurityGrade) {
+) -> (ScanStatus, RiskLevel, u8, SecurityGrade) {
     let mut has_errors = false;
     let mut has_warnings = false;
     let mut has_rce_or_backdoor = false;
@@ -441,15 +441,15 @@ fn compute_audit_metrics(
     }
 
     let status = if has_errors {
-        AuditStatus::Failed
+        ScanStatus::Failed
     } else if has_warnings {
         if strict {
-            AuditStatus::Failed
+            ScanStatus::Failed
         } else {
-            AuditStatus::Warning
+            ScanStatus::Warning
         }
     } else {
-        AuditStatus::Passed
+        ScanStatus::Passed
     };
 
     let risk_level = if has_rce_or_backdoor {
@@ -477,7 +477,7 @@ fn compute_audit_metrics(
 /// Computes the security score and grade for a set of findings.
 ///
 /// Kept as a standalone function for per-scanner scoring in
-/// [`AuditReport::from_results`].
+/// [`ScanReport::from_results`].
 fn compute_security_score(findings: &[Finding]) -> (u8, SecurityGrade) {
     let deduction: u32 = findings.iter().fold(0u32, |acc, f| {
         let pts: u32 = match f.severity {

@@ -3,14 +3,14 @@
 //! Produces a pretty-printed JSON document containing skill metadata, a
 //! severity summary, active findings, and suppressed findings.
 
-use crate::finding::AuditReport;
+use crate::finding::ScanReport;
 
 #[derive(serde::Serialize)]
 struct JsonOutput<'a> {
     skill: &'a str,
     version: &'a Option<String>,
-    audit_timestamp: &'a str,
-    status: &'a crate::finding::AuditStatus,
+    scan_timestamp: &'a str,
+    status: &'a crate::finding::ScanStatus,
     risk_level: &'a crate::finding::RiskLevel,
     security_score: u8,
     security_grade: &'a crate::finding::SecurityGrade,
@@ -28,7 +28,7 @@ struct Summary {
     suppressed: usize,
 }
 
-/// Formats an [`AuditReport`] as pretty-printed JSON.
+/// Formats a [`ScanReport`] as pretty-printed JSON.
 ///
 /// The output includes skill metadata, a severity summary object, and the
 /// full list of active and suppressed findings.
@@ -36,11 +36,11 @@ struct Summary {
 /// # Panics
 ///
 /// Panics if the report cannot be serialized (should not happen with valid data).
-pub fn format(report: &AuditReport) -> String {
+pub fn format(report: &ScanReport) -> String {
     let output = JsonOutput {
         skill: &report.skill,
         version: &report.version,
-        audit_timestamp: &report.audit_timestamp,
+        scan_timestamp: &report.scan_timestamp,
         status: &report.status,
         risk_level: &report.risk_level,
         security_score: report.security_score,

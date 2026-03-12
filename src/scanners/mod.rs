@@ -9,7 +9,7 @@
 //!   (gitleaks), [`semgrep`].
 //!
 //! Use [`skill_scanners`] / [`agent_scanners`] to obtain the scanner set for
-//! the appropriate audit mode, and [`all_rules`] / [`all_agent_rules`] /
+//! the appropriate scan mode, and [`all_rules`] / [`all_agent_rules`] /
 //! [`all_unique_rules`] to list every rule they define.
 
 pub mod agent_frontmatter;
@@ -36,7 +36,7 @@ pub const EXTERNAL_TOOL_TIMEOUT: Duration = Duration::from_secs(60);
 /// A pluggable security scanner.
 ///
 /// Implementers **must** be [`Send`] + [`Sync`] because
-/// [`audit::run_audit`](crate::audit::run_audit) executes scanners in parallel
+/// [`scan::run_scan`](crate::scan::run_scan) executes scanners in parallel
 /// via [rayon].
 ///
 /// # Implementing a custom scanner
@@ -75,9 +75,9 @@ pub trait Scanner: Send + Sync {
     fn scan(&self, path: &Path, config: &Config) -> ScanResult;
 }
 
-/// Returns scanners for a **skill** directory audit (looks for `SKILL.md`).
+/// Returns scanners for a **skill** directory scan (looks for `SKILL.md`).
 ///
-/// The returned order is the default execution order; the audit runner
+/// The returned order is the default execution order; the scan runner
 /// does not depend on this ordering because scanners run in parallel.
 pub fn skill_scanners() -> Vec<Box<dyn Scanner>> {
     vec![
@@ -92,7 +92,7 @@ pub fn skill_scanners() -> Vec<Box<dyn Scanner>> {
     ]
 }
 
-/// Returns scanners for an **agent** directory audit (looks for `AGENT.md`).
+/// Returns scanners for an **agent** directory scan (looks for `AGENT.md`).
 ///
 /// All file-type–agnostic scanners (prompt, bash patterns, secrets, etc.)
 /// are reused unchanged; only the frontmatter scanner is swapped for the
@@ -296,7 +296,7 @@ pub const MAX_FILE_SIZE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 ///
 /// All built-in scanners use this instead of `std::fs::read_to_string` so
 /// that a single malicious oversized or special file cannot cause an OOM-kill
-/// of the audit runner.
+/// of the scan runner.
 pub fn read_file_limited(path: &Path) -> Result<String, String> {
     use std::io::Read;
 
@@ -461,6 +461,7 @@ mod tests {
 /// Returns `true` if `line` ends with an inline suppression marker.
 ///
 /// Recognized markers (case-insensitive):
+/// - `# scan:ignore`
 /// - `# audit:ignore`
 /// - `# oxidized-agentic-audit:ignore`
 ///
@@ -482,7 +483,7 @@ pub fn is_suppressed_inline(line: &str) -> bool {
     // The regex requires the marker to be preceded by optional whitespace and
     // to end at the line boundary (after optional trailing whitespace).
     static RE_INLINE_SUPPRESS: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"(?i)\s*#\s*(audit|oxidized-agentic-audit):ignore\s*$").unwrap()
+        regex::Regex::new(r"(?i)\s*#\s*(scan|audit|oxidized-agentic-audit):ignore\s*$").unwrap()
     });
     RE_INLINE_SUPPRESS.is_match(line)
 }
@@ -537,7 +538,7 @@ pub fn all_unique_rules() -> Vec<RuleInfo> {
 
 /// Aggregates [`RuleInfo`] from every **agent** scanner module.
 ///
-/// Useful for building rule-listing and rule-explanation UIs for agent audits.
+/// Useful for building rule-listing and rule-explanation UIs for agent scans.
 pub fn all_agent_rules() -> Vec<RuleInfo> {
     let mut rules = Vec::new();
     rules.extend(bash_patterns::rules());

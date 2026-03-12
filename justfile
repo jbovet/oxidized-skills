@@ -28,9 +28,9 @@ install-hooks:
     chmod +x .git/hooks/pre-commit
     @echo "pre-commit hook installed"
 
-# Audit the bundled test fixtures (quick smoke-test of all scanners)
-audit:
-    cargo run -- audit tests/fixtures/
+# Scan the bundled test fixtures (quick smoke-test of all scanners)
+scan:
+    cargo run -- scan tests/fixtures/
 
 # List all built-in rules with severity and description
 list-rules:

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use oxidized_agentic_audit::config::Suppression;
-use oxidized_agentic_audit::finding::{AuditReport, Finding, ScanResult, SecurityGrade, Severity};
+use oxidized_agentic_audit::finding::{Finding, ScanReport, ScanResult, SecurityGrade, Severity};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,7 +33,7 @@ fn make_suppression(file: &str) -> Suppression {
     }
 }
 
-fn build_report(finding: Finding, suppression: Suppression) -> AuditReport {
+fn build_report(finding: Finding, suppression: Suppression) -> ScanReport {
     let result = ScanResult {
         scanner_name: "bash_patterns".to_string(),
         findings: vec![finding],
@@ -45,7 +45,7 @@ fn build_report(finding: Finding, suppression: Suppression) -> AuditReport {
         scanner_score: None,
         scanner_grade: None,
     };
-    AuditReport::from_results("test-skill", vec![result], &[suppression], false)
+    ScanReport::from_results("test-skill", vec![result], &[suppression], false)
 }
 
 // --- Positive cases: suppression SHOULD match ---
@@ -145,7 +145,7 @@ fn inverted_line_range_does_not_suppress_finding() {
         scanner_score: None,
         scanner_grade: None,
     };
-    let report = AuditReport::from_results("test-skill", vec![result], &[suppression], false);
+    let report = ScanReport::from_results("test-skill", vec![result], &[suppression], false);
     assert!(
         !report.findings.is_empty(),
         "Inverted line range '100-50' must not suppress finding at line 75"
@@ -173,7 +173,7 @@ fn valid_line_range_suppresses_finding_within_range() {
         scanner_score: None,
         scanner_grade: None,
     };
-    let report = AuditReport::from_results("test-skill", vec![result], &[suppression], false);
+    let report = ScanReport::from_results("test-skill", vec![result], &[suppression], false);
     assert!(
         report.findings.is_empty(),
         "Valid range '50-100' should suppress finding at line 75"
@@ -185,7 +185,7 @@ fn valid_line_range_suppresses_finding_within_range() {
 // Security score tests
 // ---------------------------------------------------------------------------
 
-fn make_report_from_findings(findings: Vec<Finding>) -> AuditReport {
+fn make_report_from_findings(findings: Vec<Finding>) -> ScanReport {
     let result = ScanResult {
         scanner_name: "test".to_string(),
         findings,
@@ -197,7 +197,7 @@ fn make_report_from_findings(findings: Vec<Finding>) -> AuditReport {
         scanner_score: None,
         scanner_grade: None,
     };
-    AuditReport::from_results("score-test", vec![result], &[], false)
+    ScanReport::from_results("score-test", vec![result], &[], false)
 }
 
 fn error_finding(rule_id: &str) -> Finding {
@@ -357,7 +357,7 @@ fn make_scanner_result(name: &str, findings: Vec<Finding>) -> ScanResult {
 #[test]
 fn scanner_with_no_findings_scores_100() {
     let result = make_scanner_result("bash_patterns", vec![]);
-    let report = AuditReport::from_results("skill", vec![result], &[], false);
+    let report = ScanReport::from_results("skill", vec![result], &[], false);
     let bash = report
         .scanner_results
         .iter()
@@ -371,7 +371,7 @@ fn scanner_with_no_findings_scores_100() {
 fn scanner_with_findings_gets_degraded_score() {
     // 1 critical error → -30 → score 70
     let result = make_scanner_result("bash_patterns", vec![error_finding("bash/CAT-A-001")]);
-    let report = AuditReport::from_results("skill", vec![result], &[], false);
+    let report = ScanReport::from_results("skill", vec![result], &[], false);
     let bash = report
         .scanner_results
         .iter()
@@ -384,7 +384,7 @@ fn scanner_with_findings_gets_degraded_score() {
 #[test]
 fn skipped_scanner_has_no_score() {
     let skipped = ScanResult::skipped("semgrep", "semgrep not found on PATH");
-    let report = AuditReport::from_results("skill", vec![skipped], &[], false);
+    let report = ScanReport::from_results("skill", vec![skipped], &[], false);
     let semgrep = report
         .scanner_results
         .iter()
@@ -412,7 +412,7 @@ fn scanner_scores_are_independent_per_scanner() {
     );
     let prompt_result = make_scanner_result("prompt", vec![]);
 
-    let report = AuditReport::from_results("skill", vec![bash_result, prompt_result], &[], false);
+    let report = ScanReport::from_results("skill", vec![bash_result, prompt_result], &[], false);
 
     let bash = report
         .scanner_results
@@ -450,7 +450,7 @@ fn scanner_score_uses_raw_findings_before_suppression() {
         reason: "approved".to_string(),
         ticket: None,
     };
-    let report = AuditReport::from_results("skill", vec![result], &[suppression], false);
+    let report = ScanReport::from_results("skill", vec![result], &[suppression], false);
 
     // The finding is suppressed at the aggregate level → no active findings
     assert!(report.findings.is_empty(), "Finding should be suppressed");

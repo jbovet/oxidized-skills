@@ -1,6 +1,6 @@
-use oxidized_agentic_audit::audit::AuditMode;
 use oxidized_agentic_audit::config::Config;
 use oxidized_agentic_audit::finding::Severity;
+use oxidized_agentic_audit::scan::ScanMode;
 use oxidized_agentic_audit::scanners::agent_frontmatter::AgentFrontmatterScanner;
 use oxidized_agentic_audit::scanners::Scanner;
 use std::path::Path;
@@ -17,12 +17,12 @@ fn scan_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanResult {
     )
 }
 
-/// Run a full agent audit pipeline on a named fixture directory.
-fn audit_fixture(fixture: &str) -> oxidized_agentic_audit::finding::AuditReport {
-    oxidized_agentic_audit::audit::run_audit(
+/// Run a full agent scan pipeline on a named fixture directory.
+fn audit_fixture(fixture: &str) -> oxidized_agentic_audit::finding::ScanReport {
+    oxidized_agentic_audit::scan::run_scan(
         Path::new("tests/fixtures").join(fixture).as_path(),
         &Config::default(),
-        AuditMode::Agent,
+        ScanMode::Agent,
     )
 }
 
@@ -94,11 +94,11 @@ fn clean_agent_scanner_produces_no_findings() {
 }
 
 #[test]
-fn clean_agent_full_audit_passes() {
+fn clean_agent_full_scan_passes() {
     let report = audit_fixture("clean-agent");
     assert!(
         report.passed,
-        "clean-agent full audit should pass, got findings: {:?}",
+        "clean-agent full scan should pass, got findings: {:?}",
         report
             .findings
             .iter()
@@ -108,7 +108,7 @@ fn clean_agent_full_audit_passes() {
 }
 
 #[test]
-fn clean_agent_full_audit_has_perfect_score() {
+fn clean_agent_full_scan_has_perfect_score() {
     let report = audit_fixture("clean-agent");
     assert_eq!(
         report.security_score, 100,
@@ -189,11 +189,11 @@ fn dirty_agent_detects_unconstrained_mcp_server() {
 }
 
 #[test]
-fn dirty_agent_full_audit_fails() {
+fn dirty_agent_full_scan_fails() {
     let report = audit_fixture("dirty-agent");
     assert!(
         !report.passed,
-        "dirty-agent full audit should fail due to error-severity findings"
+        "dirty-agent full scan should fail due to error-severity findings"
     );
 }
 
@@ -409,10 +409,10 @@ fn agent_frontmatter_disabled_in_config_shows_as_skipped_in_report() {
     let mut config = Config::default();
     config.scanners.agent_frontmatter = false;
 
-    let report = oxidized_agentic_audit::audit::run_audit(
+    let report = oxidized_agentic_audit::scan::run_scan(
         Path::new("tests/fixtures/clean-agent"),
         &config,
-        AuditMode::Agent,
+        ScanMode::Agent,
     );
 
     let result = report

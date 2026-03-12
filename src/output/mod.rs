@@ -1,4 +1,4 @@
-//! Output formatting for audit reports.
+//! Output formatting for scan reports.
 //!
 //! Three formats are supported:
 //!
@@ -8,16 +8,16 @@
 //! | [`Json`](OutputFormat::Json)     | [`json`]   | Automation / scripting  |
 //! | [`Sarif`](OutputFormat::Sarif)   | [`sarif`]  | CI/CD integration       |
 //!
-//! Use [`format_report`] to render an [`AuditReport`] in any of the above
+//! Use [`format_report`] to render a [`ScanReport`] in any of the above
 //! formats.
 
 pub mod json;
 pub mod pretty;
 pub mod sarif;
 
-use crate::finding::AuditReport;
+use crate::finding::ScanReport;
 
-/// Supported output formats for audit reports.
+/// Supported output formats for scan reports.
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum OutputFormat {
     /// Human-readable colored text with summary tables.
@@ -28,19 +28,19 @@ pub enum OutputFormat {
     Sarif,
 }
 
-/// Formats an [`AuditReport`] in the requested [`OutputFormat`].
+/// Formats a [`ScanReport`] in the requested [`OutputFormat`].
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// use oxidized_agentic_audit::output::{format_report, OutputFormat};
-/// # use oxidized_agentic_audit::finding::AuditReport;
-/// # fn example(report: &AuditReport) {
+/// # use oxidized_agentic_audit::finding::ScanReport;
+/// # fn example(report: &ScanReport) {
 /// let json = format_report(report, &OutputFormat::Json);
 /// println!("{json}");
 /// # }
 /// ```
-pub fn format_report(report: &AuditReport, format: &OutputFormat) -> String {
+pub fn format_report(report: &ScanReport, format: &OutputFormat) -> String {
     match format {
         OutputFormat::Pretty => pretty::format(report),
         OutputFormat::Json => json::format(report),

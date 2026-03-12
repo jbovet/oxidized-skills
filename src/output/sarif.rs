@@ -3,7 +3,7 @@
 //! Produces a standards-compliant SARIF document that can be consumed by GitHub
 //! Code Scanning, VS Code SARIF Viewer, and other SARIF-aware tools.
 
-use crate::finding::{AuditReport, Finding, Severity};
+use crate::finding::{Finding, ScanReport, Severity};
 use serde_sarif::sarif::{
     ArtifactLocation, Location, Message, MultiformatMessageString, PhysicalLocation, PropertyBag,
     Region, ReportingDescriptor, Result as SarifResult, ResultLevel, Run, Sarif, Tool,
@@ -11,7 +11,7 @@ use serde_sarif::sarif::{
 };
 use std::collections::{BTreeMap, HashMap};
 
-/// Formats an [`AuditReport`] as a [SARIF 2.1.0] JSON document.
+/// Formats a [`ScanReport`] as a [SARIF 2.1.0] JSON document.
 ///
 /// Both active and suppressed findings are included so that downstream tools
 /// can display suppression state. Rules are deduplicated and referenced by
@@ -23,7 +23,7 @@ use std::collections::{BTreeMap, HashMap};
 /// valid data).
 ///
 /// [SARIF 2.1.0]: https://sarifweb.azurewebsites.net/
-pub fn format(report: &AuditReport) -> String {
+pub fn format(report: &ScanReport) -> String {
     let all_findings: Vec<&Finding> = report
         .findings
         .iter()

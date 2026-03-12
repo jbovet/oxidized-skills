@@ -1,24 +1,24 @@
-use oxidized_agentic_audit::audit::AuditMode;
 use oxidized_agentic_audit::config::Config;
 use oxidized_agentic_audit::output;
 use oxidized_agentic_audit::output::OutputFormat;
+use oxidized_agentic_audit::scan::ScanMode;
 use std::path::Path;
 
-fn get_dirty_report() -> oxidized_agentic_audit::finding::AuditReport {
+fn get_dirty_report() -> oxidized_agentic_audit::finding::ScanReport {
     let config = Config::default();
-    oxidized_agentic_audit::audit::run_audit(
+    oxidized_agentic_audit::scan::run_scan(
         Path::new("tests/fixtures/dirty-skill"),
         &config,
-        AuditMode::Skill,
+        ScanMode::Skill,
     )
 }
 
-fn get_clean_report() -> oxidized_agentic_audit::finding::AuditReport {
+fn get_clean_report() -> oxidized_agentic_audit::finding::ScanReport {
     let config = Config::default();
-    oxidized_agentic_audit::audit::run_audit(
+    oxidized_agentic_audit::scan::run_scan(
         Path::new("tests/fixtures/clean-skill"),
         &config,
-        AuditMode::Skill,
+        ScanMode::Skill,
     )
 }
 

