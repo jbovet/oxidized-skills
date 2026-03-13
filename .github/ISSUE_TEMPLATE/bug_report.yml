@@ -31,7 +31,7 @@ body:
       label: Steps to reproduce
       description: Step-by-step instructions to reproduce the issue.
       placeholder: |
-        1. Run `oxidized-agentic-audit audit ./my-skill`
+        1. Run `oxidized-agentic-audit scan ./my-skill`
         2. See error...
     validations:
       required: true
